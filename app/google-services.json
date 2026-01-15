@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "462054954816",
+    "project_id": "navarres-8d2e3",
+    "storage_bucket": "navarres-8d2e3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:462054954816:android:9fd9dd8c99bca914158ca5",
+        "android_client_info": {
+          "package_name": "com.example.navarrest2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0it8ZliNzNTWZbJje2iPqPK0Rn5ax-0s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

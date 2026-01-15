@@ -11,37 +11,40 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.lifecycleScope
+import com.example.navarres.model.repository.AuthRepository
 import com.example.navarres.ui.theme.NavarresTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            NavarresTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+
+
+        val repo = AuthRepository()
+
+
+        lifecycleScope.launch {
+            println("--- INICIANDO PRUEBA DE FIREBASE ---")
+
+            // 1. Intentamos registrar un usuario inventado
+            val resultado = repo.register("prueba1@ejemplo.com", "123456")
+
+            if (resultado.isSuccess) {
+                println("✅ ÉXITO TOTAL: Usuario creado con ID: ${resultado.getOrNull()?.uid}")
+            } else {
+                println("❌ FALLO: ${resultado.exceptionOrNull()?.message}")
+                // Si falla porque ya existe, probamos el login
+                println("--- Intentando Login en su lugar ---")
+                val login = repo.login("prueba1@ejemplo.com", "123456")
+                if (login.isSuccess) println("✅ LOGIN OK") else println("❌ LOGIN FALLÓ TAMBIÉN")
             }
         }
-    }
-}
+        // ---------------------------------------
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    NavarresTheme {
-        Greeting("Android")
+        enableEdgeToEdge()
+        setContent {
+            // ... tu código de Compose ...
+        }
     }
 }
