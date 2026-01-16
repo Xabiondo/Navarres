@@ -38,7 +38,7 @@ fun HomeScreen(viewModel: AuthViewModel) {
         Text(
             text = "¡Buen provecho!",
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            color = Color(0xFFB30000) // Rojo Navarra
+            color = Color(0xFFB30000)
         )
 
         Text(
