@@ -13,14 +13,49 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.navarres.viewmodel.AuthViewModel
+import com.example.navarres.viewmodel.LoginViewModel
+
 
 @Composable
-fun LoginScreen(viewModel: AuthViewModel, onNavigateToRegister: () -> Unit) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+fun LoginScreen(
+    viewModel: LoginViewModel,
+    onNavigateToRegister: () -> Unit,
+    onLoginSuccess: () -> Unit
+) {
+    val state by viewModel.uiState.collectAsState()
 
+    // Manejo de Navegación (Efecto Secundario)
+    LaunchedEffect(state.isSuccess) {
+        if (state.isSuccess) {
+            onLoginSuccess()
+            viewModel.resetState()
+        }
+    }
+
+    LoginContent(
+        email = state.email,
+        password = state.password,
+        isLoading = state.isLoading,
+        error = state.error,
+        onEmailChange = viewModel::onEmailChange,
+        onPasswordChange = viewModel::onPasswordChange,
+        onLoginClick = viewModel::login,
+        onNavigateToRegister = onNavigateToRegister
+    )
+}
+
+// 2. Componente Tonto (Stateless) - UI Pura
+@Composable
+fun LoginContent(
+    email: String,
+    password: String,
+    isLoading: Boolean,
+    error: String?,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onLoginClick: () -> Unit,
+    onNavigateToRegister: () -> Unit
+) {
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFFFDFCF0)),
         contentAlignment = Alignment.Center
@@ -30,7 +65,6 @@ fun LoginScreen(viewModel: AuthViewModel, onNavigateToRegister: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(Icons.Default.Explore, contentDescription = null, modifier = Modifier.size(70.dp), tint = Color(0xFFB30000))
-
             Text("NavarRes", style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Black), color = Color(0xFFB30000))
             Text("¡Bienvenido de nuevo, gourmet!", color = Color(0xFF2E7D32))
 
@@ -44,39 +78,43 @@ fun LoginScreen(viewModel: AuthViewModel, onNavigateToRegister: () -> Unit) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     OutlinedTextField(
                         value = email,
-                        onValueChange = { email = it },
+                        onValueChange = onEmailChange,
                         label = { Text("Email") },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFFB30000))
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFFB30000)),
+                        enabled = !isLoading
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     OutlinedTextField(
                         value = password,
-                        onValueChange = { password = it },
+                        onValueChange = onPasswordChange,
                         label = { Text("Contraseña") },
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFFB30000))
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFFB30000)),
+                        enabled = !isLoading,
+                        isError = error != null
                     )
 
-                    viewModel.authError?.let {
-                        Text(it, color = Color.Red, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                    if (error != null) {
+                        Text(error, color = Color.Red, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Button(
-                        onClick = { viewModel.login(email, password) {} },
+                        onClick = onLoginClick,
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB30000)),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !isLoading
                     ) {
-                        if (viewModel.isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                         else Text("ENTRAR AL COMEDOR", fontWeight = FontWeight.Bold)
                     }
                 }
             }
-            TextButton(onClick = onNavigateToRegister) {
+            TextButton(onClick = onNavigateToRegister, enabled = !isLoading) {
                 Text("¿No tienes cuenta? Regístrate aquí", color = Color.DarkGray)
             }
         }

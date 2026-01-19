@@ -1,0 +1,23 @@
+package com.example.navarres.viewmodel
+
+import androidx.lifecycle.ViewModel
+import com.example.navarres.model.repository.AuthRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+class HomeViewModel(
+    private val authRepository: AuthRepository
+) : ViewModel() {
+
+
+    private val _currentUserEmail = MutableStateFlow(authRepository.getCurrentUser()?.email ?: "Usuario")
+    val currentUserEmail = _currentUserEmail.asStateFlow()
+
+    private val _isLoggedOut = MutableStateFlow(false)
+    val isLoggedOut = _isLoggedOut.asStateFlow()
+
+    fun logout() {
+        authRepository.logout()
+        _isLoggedOut.value = true
+    }
+}
