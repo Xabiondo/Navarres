@@ -17,7 +17,7 @@ import com.example.navarres.viewmodel.RegisterViewModel
 
 class MainActivity : ComponentActivity() {
 
-
+    // Repositorios compartidos
     private val authRepository = AuthRepository()
     private val userRepository = UserRepository()
 
@@ -27,24 +27,23 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             NavarresTheme {
-                // 2. Estado Global de Navegación
-                // Comprobamos al inicio si ya hay un usuario logueado en Firebase
+                // Estado Global de Navegación: Firebase manda sobre si estamos dentro o fuera
                 var isUserLoggedIn by remember {
                     mutableStateOf(authRepository.getCurrentUser() != null)
                 }
 
                 if (isUserLoggedIn) {
                     // ----------------------------------------------------
-                    // FLUJO HOME (Usuario Logueado)
+                    // FLUJO HOME (Con el nuevo sistema de pestañas)
                     // ----------------------------------------------------
 
-                    // Creamos el ViewModel específico de Home
+                    // Usamos remember para que el ViewModel persista durante la sesión
                     val homeViewModel = remember { HomeViewModel(authRepository) }
 
                     HomeScreen(
                         viewModel = homeViewModel,
                         onLogoutSuccess = {
-                            // Cuando el Home avise que cerró sesión, cambiamos el estado
+                            // Al cerrar sesión, volvemos al flujo de Login
                             isUserLoggedIn = false
                         }
                     )
@@ -58,20 +57,17 @@ class MainActivity : ComponentActivity() {
 
                     when (currentAuthScreen) {
                         "login" -> {
-                            // Creamos ViewModel de Login con AuthRepo
                             val loginViewModel = remember { LoginViewModel(authRepository) }
 
                             LoginScreen(
                                 viewModel = loginViewModel,
                                 onNavigateToRegister = { currentAuthScreen = "register" },
                                 onLoginSuccess = {
-                                    // Si el login tiene éxito, cambiamos el estado global para ir a Home
                                     isUserLoggedIn = true
                                 }
                             )
                         }
                         "register" -> {
-                            // Creamos ViewModel de Register con AuthRepo Y UserRepo
                             val registerViewModel = remember {
                                 RegisterViewModel(authRepository, userRepository)
                             }
@@ -80,7 +76,6 @@ class MainActivity : ComponentActivity() {
                                 viewModel = registerViewModel,
                                 onNavigateToLogin = { currentAuthScreen = "login" },
                                 onRegisterSuccess = {
-                                    // Si el registro tiene éxito, vamos directo al Home
                                     isUserLoggedIn = true
                                 }
                             )
