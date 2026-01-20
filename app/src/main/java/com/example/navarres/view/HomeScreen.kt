@@ -3,6 +3,8 @@ package com.example.navarres.view
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,9 +16,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.navarres.ui.theme.RestaurantCard
 import com.example.navarres.viewmodel.HomeViewModel
 
-// Clase para definir los destinos de la barra de navegación
+
 sealed class NavItem(val route: String, val title: String, val icon: ImageVector) {
     object Restaurantes : NavItem("restaurantes", "Restaurantes", Icons.Default.Restaurant)
     object Favoritos : NavItem("favoritos", "Favoritos", Icons.Default.Favorite)
@@ -33,26 +36,32 @@ fun HomeScreen(
     val isLoggedOut by viewModel.isLoggedOut.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
 
+    // Manejo de estados para la prueba de restaurantes
+    val localesDePrueba = remember {
+        mutableStateListOf(
+            Triple("El Redín", "0.5 km", 4),
+            Triple("La Viña", "1.2 km", 2),
+            Triple("Mesón de la Tortilla", "2.1 km", 3),
+            Triple("Taberna NavarRes", "0.2 km", 1)
+        )
+    }
+    val favoritosState = remember { mutableStateMapOf<String, Boolean>() }
+
     LaunchedEffect(isLoggedOut) {
         if (isLoggedOut) {
             onLogoutSuccess()
         }
     }
 
-    // El Scaffold proporciona el hueco para la barra inferior (bottomBar)
     Scaffold(
         bottomBar = {
             NavigationBar(
-                containerColor = Color(0xFFFDFCF0), // Crema NavarRes
-                contentColor = Color(0xFFB30000)    // Rojo NavarRes
+                containerColor = Color(0xFFFDFCF0),
+                contentColor = Color(0xFFB30000)
             ) {
                 val navItems = listOf(
-                    NavItem.Restaurantes,
-                    NavItem.Favoritos,
-                    NavItem.Perfil,
-                    NavItem.Ajustes
+                    NavItem.Restaurantes, NavItem.Favoritos, NavItem.Perfil, NavItem.Ajustes
                 )
-
                 navItems.forEach { item ->
                     NavigationBarItem(
                         selected = selectedTab == item.route,
@@ -69,7 +78,6 @@ fun HomeScreen(
             }
         }
     ) { paddingValues ->
-        // El Box contiene el contenido de cada pestaña
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -78,25 +86,38 @@ fun HomeScreen(
         ) {
             when (selectedTab) {
                 "restaurantes" -> {
-                    Column(
+                    LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        Icon(Icons.Default.Restaurant, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
-                        Text("Listado de Restaurantes", style = MaterialTheme.typography.headlineSmall)
-                        Text("Próximamente tu LazyColumn aquí", color = Color.Gray)
+                        item {
+                            Text(
+                                text = "Restaurantes Cercanos",
+                                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color(0xFFB30000),
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                        items(localesDePrueba) { (nombre, distancia, nota) ->
+                            val isFav = favoritosState[nombre] ?: false
+                            RestaurantCard(
+                                name = nombre,
+                                category = "Cocina Navarra",
+                                rating = nota,
+                                distance = distancia,
+                                isFavorite = isFav,
+                                onFavoriteClick = { favoritosState[nombre] = !isFav },
+                                onClick = { println("Click en $nombre") }
+                            )
+                        }
                     }
                 }
                 "favoritos" -> {
                     Text("Tus sitios favoritos", Modifier.align(Alignment.Center))
                 }
                 "perfil" -> {
-                    // Aquí llamamos a tu contenido original con el botón de LogOut
-                    HomeContent(
-                        userEmail = email,
-                        onLogoutClick = viewModel::logout
-                    )
+                    HomeContent(userEmail = email, onLogoutClick = viewModel::logout)
                 }
                 "config" -> {
                     Text("Configuración de la App", Modifier.align(Alignment.Center))
@@ -107,56 +128,27 @@ fun HomeScreen(
 }
 
 @Composable
-fun HomeContent(
-    userEmail: String,
-    onLogoutClick: () -> Unit
-) {
+fun HomeContent(userEmail: String, onLogoutClick: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            Icons.Default.Restaurant,
-            contentDescription = null,
-            modifier = Modifier.size(100.dp),
-            tint = Color(0xFF2E7D32) // Verde NavarRes
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            "¡Buen provecho!",
-            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            color = Color(0xFFB30000)
-        )
-        Text(
-            "Explora los sabores del Reyno",
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.DarkGray
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            "Conectado como: $userEmail",
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
+        Icon(Icons.Default.Restaurant, null, Modifier.size(100.dp), Color(0xFF2E7D32))
+        Spacer(Modifier.height(24.dp))
+        Text("¡Buen provecho!", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFFB30000))
+        Text("Explora los sabores del Reyno", style = MaterialTheme.typography.bodyLarge, color = Color.DarkGray)
+        Spacer(Modifier.height(16.dp))
+        Text("Conectado como: $userEmail", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        Spacer(Modifier.height(48.dp))
         Button(
             onClick = onLogoutClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = Color(0xFFB30000)
-            ),
-            modifier = Modifier
-                .padding(horizontal = 32.dp)
-                .height(50.dp)
-                .fillMaxWidth(0.7f),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color(0xFFB30000)),
+            modifier = Modifier.padding(horizontal = 32.dp).height(50.dp).fillMaxWidth(0.7f),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.dp, Color(0xFFB30000))
         ) {
-            Icon(Icons.Default.ExitToApp, contentDescription = null)
+            Icon(Icons.Default.ExitToApp, null)
             Spacer(Modifier.width(8.dp))
             Text("ABANDONAR LA MESA", fontWeight = FontWeight.Bold)
         }
