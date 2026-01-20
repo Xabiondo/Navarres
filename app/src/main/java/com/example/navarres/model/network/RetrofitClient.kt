@@ -13,5 +13,6 @@ object RetrofitClient {
             .addConverterFactory(GsonConverterFactory.create()) // Para convertir JSON a Objetos
             .build()
             .create(RestaurantApiService::class.java)
+        
     }
 }
