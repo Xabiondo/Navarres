@@ -61,5 +61,12 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation("androidx.compose.material:material-icons-extended")
+    // 2. Convertidor GSON (Para transformar JSON a Objetos Kotlin automáticamente)
+    implementation(platform(libs.okhttp.bom)) // Use the OkHttp BOM
+    implementation(libs.okhttp.logging.interceptor) // This comes from the BOM
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+
+
 
 }
