@@ -1,4 +1,4 @@
-package com.example.navarres.ui.screens
+package com.example.navarres.view
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background

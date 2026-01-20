@@ -7,9 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import com.example.navarres.model.repository.AuthRepository
 import com.example.navarres.model.repository.UserRepository
-import com.example.navarres.ui.screens.HomeScreen
-import com.example.navarres.ui.screens.LoginScreen
-import com.example.navarres.ui.screens.RegisterScreen
+import com.example.navarres.view.HomeScreen
+import com.example.navarres.view.LoginScreen
+import com.example.navarres.view.RegisterScreen
 import com.example.navarres.ui.theme.NavarresTheme
 import com.example.navarres.viewmodel.HomeViewModel
 import com.example.navarres.viewmodel.LoginViewModel

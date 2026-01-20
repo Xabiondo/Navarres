@@ -1,4 +1,4 @@
-package com.example.navarres.ui.screens
+package com.example.navarres.view
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
