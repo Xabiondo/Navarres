@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class HomeViewModel(
-    private val authRepository: AuthRepository
+    val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _currentUserEmail = MutableStateFlow(authRepository.getCurrentUser()?.email ?: "Usuario")
