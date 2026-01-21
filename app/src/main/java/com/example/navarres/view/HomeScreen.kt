@@ -1,9 +1,11 @@
 package com.example.navarres.view
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
+import android.content.Context
+import android.net.Uri
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -12,11 +14,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.example.navarres.viewmodel.HomeViewModel
+import com.example.navarres.viewmodel.ProfileViewModel
+import java.io.File
 
-// Clase para definir los destinos de la barra de navegación
+// Definición básica de rutas
 sealed class NavItem(val route: String, val title: String, val icon: ImageVector) {
     object Restaurantes : NavItem("restaurantes", "Restaurantes", Icons.Default.Restaurant)
     object Favoritos : NavItem("favoritos", "Favoritos", Icons.Default.Favorite)
@@ -27,138 +32,85 @@ sealed class NavItem(val route: String, val title: String, val icon: ImageVector
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
+    profileViewModel: ProfileViewModel,
     onLogoutSuccess: () -> Unit
 ) {
-    val email by viewModel.currentUserEmail.collectAsState()
-    val isLoggedOut by viewModel.isLoggedOut.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
+    val isLoggedOut by viewModel.isLoggedOut.collectAsState()
+
+    // --- LÓGICA DE CÁMARA ---
+    val context = LocalContext.current
+    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Este es el "escuchador" que sube la foto cuando vuelves de la cámara
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success && tempPhotoUri != null) {
+                Log.d("NAV_CAMERA", "Foto tomada con éxito, subiendo...")
+                profileViewModel.onPhotoTaken(tempPhotoUri!!)
+            }
+        }
+    )
+    // ------------------------
 
     LaunchedEffect(isLoggedOut) {
-        if (isLoggedOut) {
-            onLogoutSuccess()
-        }
+        if (isLoggedOut) { onLogoutSuccess() }
     }
 
-    // El Scaffold proporciona el hueco para la barra inferior (bottomBar)
     Scaffold(
         bottomBar = {
-            NavigationBar(
-                containerColor = Color(0xFFFDFCF0), // Crema NavarRes
-                contentColor = Color(0xFFB30000)    // Rojo NavarRes
-            ) {
-                val navItems = listOf(
-                    NavItem.Restaurantes,
-                    NavItem.Favoritos,
-                    NavItem.Perfil,
-                    NavItem.Ajustes
-                )
-
-                navItems.forEach { item ->
+            NavigationBar {
+                listOf(NavItem.Restaurantes, NavItem.Favoritos, NavItem.Perfil, NavItem.Ajustes).forEach { item ->
                     NavigationBarItem(
                         selected = selectedTab == item.route,
                         onClick = { viewModel.selectTab(item.route) },
-                        label = { Text(item.title) },
                         icon = { Icon(item.icon, contentDescription = item.title) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFFB30000),
-                            unselectedIconColor = Color.Gray,
-                            indicatorColor = Color(0xFFFFEBEE)
-                        )
+                        label = { Text(item.title) }
                     )
                 }
             }
         }
     ) { paddingValues ->
-        // El Box contiene el contenido de cada pestaña
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .background(Color(0xFFFDFCF0))
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
         ) {
-            when (selectedTab) {
-                "restaurantes" -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(Icons.Default.Restaurant, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
-                        Text("Listado de Restaurantes", style = MaterialTheme.typography.headlineSmall)
-                        Text("Próximamente tu LazyColumn aquí", color = Color.Gray)
-                    }
+            // Muestro SOLO el botón, esté en la pestaña que esté (para probar rápido)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                Button(
+                    onClick = {
+                        // 1. Crear archivo temporal
+                        val uri = ComposeFileProvider.getImageUri(context)
+                        tempPhotoUri = uri
+                        // 2. Abrir cámara
+                        cameraLauncher.launch(uri)
+                    },
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text("ABRIR CÁMARA Y SUBIR FOTO")
                 }
-                "favoritos" -> {
-                    Text("Tus sitios favoritos", Modifier.align(Alignment.Center))
-                }
-                "perfil" -> {
-                    // Aquí llamamos a tu contenido original con el botón de LogOut
-                    HomeContent(
-                        userEmail = email,
-                        onLogoutClick = viewModel::logout
-                    )
-                }
-                "config" -> {
-                    Text("Configuración de la App", Modifier.align(Alignment.Center))
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(onClick = { viewModel.logout() }) {
+                    Text("Cerrar Sesión")
                 }
             }
         }
     }
 }
 
-@Composable
-fun HomeContent(
-    userEmail: String,
-    onLogoutClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            Icons.Default.Restaurant,
-            contentDescription = null,
-            modifier = Modifier.size(100.dp),
-            tint = Color(0xFF2E7D32) // Verde NavarRes
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            "¡Buen provecho!",
-            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            color = Color(0xFFB30000)
-        )
-        Text(
-            "Explora los sabores del Reyno",
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.DarkGray
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            "Conectado como: $userEmail",
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Button(
-            onClick = onLogoutClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = Color(0xFFB30000)
-            ),
-            modifier = Modifier
-                .padding(horizontal = 32.dp)
-                .height(50.dp)
-                .fillMaxWidth(0.7f),
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, Color(0xFFB30000))
-        ) {
-            Icon(Icons.Default.ExitToApp, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("ABANDONAR LA MESA", fontWeight = FontWeight.Bold)
-        }
+// Lógica de Archivos (Necesaria para que la cámara no falle)
+object ComposeFileProvider {
+    fun getImageUri(context: Context): Uri {
+        val directory = File(context.cacheDir, "images")
+        directory.mkdirs()
+        val file = File.createTempFile("selected_image_", ".jpg", directory)
+        val authority = context.packageName + ".provider"
+        return FileProvider.getUriForFile(context, authority, file)
     }
 }

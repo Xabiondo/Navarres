@@ -66,6 +66,8 @@ dependencies {
     implementation(libs.okhttp.logging.interceptor) // This comes from the BOM
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
+    implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("io.coil-kt:coil-compose:2.5.0")
 
 
 
