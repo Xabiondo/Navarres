@@ -21,6 +21,7 @@ import com.example.navarres.view.RegisterScreen
 import com.example.navarres.ui.theme.NavarresTheme
 import com.example.navarres.viewmodel.HomeViewModel
 import com.example.navarres.viewmodel.LoginViewModel
+import com.example.navarres.viewmodel.ProfileViewModel
 import com.example.navarres.viewmodel.RegisterViewModel
 import com.example.navarres.util.FirebaseMigration
 import kotlinx.coroutines.Dispatchers
