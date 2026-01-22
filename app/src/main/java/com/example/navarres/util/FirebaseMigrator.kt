@@ -3,7 +3,7 @@ package com.example.navarres.util
 import android.content.Context
 import android.location.Geocoder
 import android.util.Log
-import com.example.navarres.RestauranteRaw
+import com.example.navarres.model.RestauranteRaw
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 import java.util.Locale

@@ -1,27 +1,17 @@
 package com.example.navarres.view
 
-import android.content.Context
-import android.net.Uri
-import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
-import com.example.navarres.viewmodel.HomeViewModel
-import com.example.navarres.viewmodel.ProfileViewModel
-import java.io.File
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.navarres.viewmodel.*
 
-// Definición básica de rutas
+// Definición de las rutas de navegación
 sealed class NavItem(val route: String, val title: String, val icon: ImageVector) {
     object Restaurantes : NavItem("restaurantes", "Restaurantes", Icons.Default.Restaurant)
     object Favoritos : NavItem("favoritos", "Favoritos", Icons.Default.Favorite)
@@ -32,41 +22,39 @@ sealed class NavItem(val route: String, val title: String, val icon: ImageVector
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    profileViewModel: ProfileViewModel,
+    configViewModel: ConfigViewModel, // Recibimos el config global
     onLogoutSuccess: () -> Unit
 ) {
-    val selectedTab by viewModel.selectedTab.collectAsState()
     val isLoggedOut by viewModel.isLoggedOut.collectAsState()
-
-    // --- LÓGICA DE CÁMARA ---
-    val context = LocalContext.current
-    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
-
-    // Este es el "escuchador" que sube la foto cuando vuelves de la cámara
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture(),
-        onResult = { success ->
-            if (success && tempPhotoUri != null) {
-                Log.d("NAV_CAMERA", "Foto tomada con éxito, subiendo...")
-                profileViewModel.onPhotoTaken(tempPhotoUri!!)
-            }
-        }
-    )
-    // ------------------------
+    val selectedTab by viewModel.selectedTab.collectAsState()
 
     LaunchedEffect(isLoggedOut) {
-        if (isLoggedOut) { onLogoutSuccess() }
+        if (isLoggedOut) {
+            onLogoutSuccess()
+        }
     }
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                listOf(NavItem.Restaurantes, NavItem.Favoritos, NavItem.Perfil, NavItem.Ajustes).forEach { item ->
+            NavigationBar(
+                // Usamos colores del tema en lugar de fijos
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
+                val navItems = listOf(
+                    NavItem.Restaurantes, NavItem.Favoritos, NavItem.Perfil, NavItem.Ajustes
+                )
+                navItems.forEach { item ->
                     NavigationBarItem(
                         selected = selectedTab == item.route,
                         onClick = { viewModel.selectTab(item.route) },
+                        label = { Text(item.title) },
                         icon = { Icon(item.icon, contentDescription = item.title) },
-                        label = { Text(item.title) }
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.outline,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                        )
                     )
                 }
             }
@@ -75,42 +63,28 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentAlignment = Alignment.Center
+                .padding(paddingValues)
+                // Fondo dinámico que cambia según el modo claro/oscuro
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            // Muestro SOLO el botón, esté en la pestaña que esté (para probar rápido)
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
-                Button(
-                    onClick = {
-                        // 1. Crear archivo temporal
-                        val uri = ComposeFileProvider.getImageUri(context)
-                        tempPhotoUri = uri
-                        // 2. Abrir cámara
-                        cameraLauncher.launch(uri)
-                    },
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text("ABRIR CÁMARA Y SUBIR FOTO")
+            when (selectedTab) {
+                NavItem.Restaurantes.route -> {
+                    val resVM: RestaurantesViewModel = viewModel()
+                    RestaurantesScreen(viewModel = resVM)
                 }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Button(onClick = { viewModel.logout() }) {
-                    Text("Cerrar Sesión")
+                NavItem.Favoritos.route -> {
+                    val favVM: FavoritosViewModel = viewModel()
+                    FavoritosScreen(viewModel = favVM)
+                }
+                NavItem.Perfil.route -> {
+                    val perVM = remember { PerfilViewModel(viewModel.authRepository) }
+                    PerfilScreen(viewModel = perVM, onLogoutClick = { viewModel.logout() })
+                }
+                NavItem.Ajustes.route -> {
+                    // Usamos el ViewModel de configuración inyectado
+                    ConfigScreen(viewModel = configViewModel)
                 }
             }
         }
-    }
-}
-
-// Lógica de Archivos (Necesaria para que la cámara no falle)
-object ComposeFileProvider {
-    fun getImageUri(context: Context): Uri {
-        val directory = File(context.cacheDir, "images")
-        directory.mkdirs()
-        val file = File.createTempFile("selected_image_", ".jpg", directory)
-        val authority = context.packageName + ".provider"
-        return FileProvider.getUriForFile(context, authority, file)
     }
 }

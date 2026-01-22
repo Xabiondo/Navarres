@@ -29,45 +29,70 @@ fun RestaurantCard(
             .padding(horizontal = 16.dp, vertical = 2.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        // Cambiamos Color.White por el color de superficie del tema
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Cuadro del logo a la izquierda
+            // Cuadro del logo con fondo adaptativo
             Surface(
                 modifier = Modifier.size(60.dp),
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFFDFCF0)
+                color = MaterialTheme.colorScheme.background // Adaptativo
             ) {
-                Icon(Icons.Default.Restaurant, null, Modifier.padding(12.dp), Color(0xFFB30000))
+                Icon(
+                    imageVector = Icons.Default.Restaurant,
+                    contentDescription = null,
+                    modifier = Modifier.padding(12.dp),
+                    tint = MaterialTheme.colorScheme.primary // Rojo Navarra
+                )
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(name, fontWeight = FontWeight.Bold, color = Color(0xFFB30000))
-                Text(category, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(
+                    text = name,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary // Rojo en claro, adaptado en oscuro
+                )
+                Text(
+                    text = category,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // Gris adaptativo
+                )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // VALORACIÓN SOLO CON EL ICONO DE TENEDOR (DINING)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     repeat(4) { index ->
                         Icon(
-                            imageVector = Icons.Default.Dining, // Este es el icono más limpio (vertical)
+                            imageVector = Icons.Default.Dining,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp), // Un pelo más grande para que se vea bien
-                            tint = if (index < rating) Color(0xFFB30000) else Color(0xFFE0E0E0)
+                            modifier = Modifier.size(18.dp),
+                            tint = if (index < rating) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.3f)
                         )
                     }
 
-                    Text("  •  ", color = Color.LightGray)
+                    Text("  •  ", color = MaterialTheme.colorScheme.outline)
 
-                    Icon(Icons.Default.LocationOn, null, Modifier.size(14.dp), Color(0xFF2E7D32))
-                    Text(" $distance", style = MaterialTheme.typography.labelSmall, color = Color(0xFF2E7D32))
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        Modifier.size(14.dp),
+                        tint = Color(0xFF2E7D32) // Mantenemos el verde por ser semántico (distancia)
+                    )
+                    Text(
+                        text = " $distance",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF2E7D32)
+                    )
                 }
             }
 
@@ -75,7 +100,7 @@ fun RestaurantCard(
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = null,
-                    tint = if (isFavorite) Color(0xFFB30000) else Color.Gray
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                 )
             }
         }
