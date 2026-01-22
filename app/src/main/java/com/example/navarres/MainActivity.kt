@@ -13,6 +13,7 @@ import com.example.navarres.view.RegisterScreen
 import com.example.navarres.ui.theme.NavarresTheme
 import com.example.navarres.viewmodel.HomeViewModel
 import com.example.navarres.viewmodel.LoginViewModel
+import com.example.navarres.viewmodel.ProfileViewModel
 import com.example.navarres.viewmodel.RegisterViewModel
 
 class MainActivity : ComponentActivity() {
@@ -27,30 +28,37 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             NavarresTheme {
-                // Estado Global de Navegación: Firebase manda sobre si estamos dentro o fuera
+                // Estado Global de Navegación
                 var isUserLoggedIn by remember {
                     mutableStateOf(authRepository.getCurrentUser() != null)
                 }
 
                 if (isUserLoggedIn) {
                     // ----------------------------------------------------
-                    // FLUJO HOME (Con el nuevo sistema de pestañas)
+                    // FLUJO HOME
                     // ----------------------------------------------------
 
-                    // Usamos remember para que el ViewModel persista durante la sesión
+                    // 1. Instanciamos HomeViewModel (ya lo tenías)
                     val homeViewModel = remember { HomeViewModel(authRepository) }
 
+                    // 2. Instanciamos ProfileViewModel (NUEVO: Esto faltaba)
+                    // Necesita userRepository para subir la foto y authRepository para saber el ID
+                    val profileViewModel = remember {
+                        ProfileViewModel(userRepository, authRepository)
+                    }
+
+                    // 3. Llamamos a la pantalla pasando AMBOS ViewModels
                     HomeScreen(
                         viewModel = homeViewModel,
+                        profileViewModel = profileViewModel, // <--- Aquí arreglamos el error
                         onLogoutSuccess = {
-                            // Al cerrar sesión, volvemos al flujo de Login
                             isUserLoggedIn = false
                         }
                     )
 
                 } else {
                     // ----------------------------------------------------
-                    // FLUJO AUTH (Login / Registro)
+                    // FLUJO AUTH (Login / Registro) - Esto sigue igual
                     // ----------------------------------------------------
 
                     var currentAuthScreen by remember { mutableStateOf("login") }

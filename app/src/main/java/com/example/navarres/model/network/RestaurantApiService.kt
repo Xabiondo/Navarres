@@ -8,7 +8,6 @@ import retrofit2.http.GET
 interface RestaurantApiService {
 
 
-
     @GET("restaurantes")
     suspend fun getRestaurants(): List<Restaurant>
 }
