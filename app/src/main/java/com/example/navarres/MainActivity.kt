@@ -68,31 +68,7 @@ class MainActivity : ComponentActivity() {
                     val homeViewModel = remember { HomeViewModel(authRepository) }
 
                     Column(modifier = Modifier.fillMaxSize()) {
-                        /*
-                        Button(
-                            onClick = {
-                                scope.launch(Dispatchers.IO) {
-                                    try {
-                                        val retrofit = Retrofit.Builder()
-                                            .baseUrl("https://datosabiertos.navarra.es/")
-                                            .addConverterFactory(GsonConverterFactory.create())
-                                            .build()
-                                        val api = retrofit.create(NavarraApiService::class.java)
-                                        val res = api.obtenerRestaurantes()
-                                        FirebaseMigration.ejecutarMigracionUnica(context, res.result.records)
-                                        launch(Dispatchers.Main) {
-                                            Toast.makeText(context, "Datos subidos", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        Log.e("MIGRACION", "Error: ${e.message}")
-                                    }
-                                }
-                            },
-                            modifier = Modifier.padding(top = 50.dp, start = 16.dp, end = 16.dp).fillMaxWidth()
-                        ) {
-                            Text("MIGRAR RESTAURANTES")
-                        }
-*/
+
                         HomeScreen(
                             viewModel = homeViewModel,
                             onLogoutSuccess = { isUserLoggedIn = false }
