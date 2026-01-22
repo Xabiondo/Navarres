@@ -7,7 +7,6 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.navarres.viewmodel.*
@@ -23,6 +22,7 @@ sealed class NavItem(val route: String, val title: String, val icon: ImageVector
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
+    configViewModel: ConfigViewModel, // Recibimos el config global
     onLogoutSuccess: () -> Unit
 ) {
     val isLoggedOut by viewModel.isLoggedOut.collectAsState()
@@ -37,8 +37,9 @@ fun HomeScreen(
     Scaffold(
         bottomBar = {
             NavigationBar(
-                containerColor = Color(0xFFFDFCF0),
-                contentColor = Color(0xFFB30000)
+                // Usamos colores del tema en lugar de fijos
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary
             ) {
                 val navItems = listOf(
                     NavItem.Restaurantes, NavItem.Favoritos, NavItem.Perfil, NavItem.Ajustes
@@ -50,9 +51,9 @@ fun HomeScreen(
                         label = { Text(item.title) },
                         icon = { Icon(item.icon, contentDescription = item.title) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFFB30000),
-                            unselectedIconColor = Color.Gray,
-                            indicatorColor = Color(0xFFFFEBEE)
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.outline,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
                         )
                     )
                 }
@@ -63,9 +64,9 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color(0xFFFDFCF0))
+                // Fondo dinámico que cambia según el modo claro/oscuro
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            // Modularización: cada pestaña llama a su propio archivo Screen
             when (selectedTab) {
                 NavItem.Restaurantes.route -> {
                     val resVM: RestaurantesViewModel = viewModel()
@@ -76,13 +77,12 @@ fun HomeScreen(
                     FavoritosScreen(viewModel = favVM)
                 }
                 NavItem.Perfil.route -> {
-                    // SOLUCIÓN: Creamos el VM pasando manualmente el repositorio del HomeViewModel
                     val perVM = remember { PerfilViewModel(viewModel.authRepository) }
                     PerfilScreen(viewModel = perVM, onLogoutClick = { viewModel.logout() })
                 }
                 NavItem.Ajustes.route -> {
-                    val confVM: ConfigViewModel = viewModel()
-                    ConfigScreen(viewModel = confVM)
+                    // Usamos el ViewModel de configuración inyectado
+                    ConfigScreen(viewModel = configViewModel)
                 }
             }
         }
