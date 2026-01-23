@@ -5,9 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.navarres.model.repository.AuthRepository
 import com.example.navarres.model.repository.UserRepository
+// Make sure this import is present
 import com.example.navarres.view.HomeScreen
 import com.example.navarres.view.LoginScreen
 import com.example.navarres.view.RegisterScreen

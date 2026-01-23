@@ -7,57 +7,59 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.navarres.model.data.Restaurant
+// Asegúrate de que este import existe. Si RestaurantCard está en otro lado, ajusta esto:
 import com.example.navarres.ui.theme.RestaurantCard
 import com.example.navarres.viewmodel.RestaurantesViewModel
 
 @Composable
 fun RestaurantesScreen(
     viewModel: RestaurantesViewModel,
-    onRestaurantClick: (Restaurant) -> Unit
+    // Usamos (String) -> Unit para que coincida con lo que envía HomeScreen
+    onNavigateToDetail: (String) -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
-        // Encabezado de la pantalla
-        item {
-            Text(
-                text = "Gastronomía Foral",
-                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold),
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-        }
+        // Título con el mismo estilo que en Favoritos (Rojo corporativo)
+        Text(
+            text = "Gastronomía Foral",
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+            color = Color(0xFFB30000),
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
 
-        // Iteramos sobre la lista de objetos Restaurant (usando el nombre de variable de main)
-        items(viewModel.localesDePrueba) { restaurante ->
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Iteramos sobre la lista del ViewModel
+            items(viewModel.localesDePrueba) { restaurante ->
 
-            // Verificamos si este ID está en el mapa de favoritos
-            // Main utiliza 'identificador' en lugar del nombre para evitar duplicados
-            val isFav = viewModel.favoritosState[restaurante.identificador] ?: false
+                // Calculamos si es favorito mirando el mapa del ViewModel
+                val isFav = viewModel.favoritosState[restaurante.identificador] == true
 
-            RestaurantCard(
-                name = restaurante.nombre,
-                // Si la categoría viene vacía del JSON, ponemos un valor por defecto
-                category = if (restaurante.categoria.isNotEmpty()) restaurante.categoria else "Cocina Navarra",
-                rating = 4, // Valor estático temporal
-                distance = restaurante.municipio, // Usamos el municipio como dato de ubicación
-                isFavorite = isFav,
-                
-                // Acción para marcar/desmarcar favorito pasando el objeto completo
-                onFavoriteClick = { 
-                    viewModel.toggleFavorite(restaurante) 
-                },
-                
-                // Acción para abrir el detalle (tu lógica de navegación)
-                onClick = { 
-                    onRestaurantClick(restaurante) 
-                }
-            )
+                // --- AQUÍ USAMOS TU COMPONENTE RESTAURANTCARD ---
+                // Esto garantiza que el estilo sea idéntico al de Favoritos
+                RestaurantCard(
+                    name = restaurante.nombre,
+                    // Si no hay categoría, ponemos un texto por defecto
+                    category = if (restaurante.categoria.isNotEmpty()) restaurante.categoria else "Cocina Navarra",
+                    rating = 4, // Valor fijo por ahora
+                    distance = restaurante.municipio,
+                    isFavorite = isFav,
+                    onFavoriteClick = {
+                        viewModel.toggleFavorite(restaurante)
+                    },
+                    onClick = {
+                        // Al hacer clic, enviamos el ID al HomeScreen para navegar
+                        onNavigateToDetail(restaurante.identificador)
+                    }
+                )
+            }
         }
     }
 }

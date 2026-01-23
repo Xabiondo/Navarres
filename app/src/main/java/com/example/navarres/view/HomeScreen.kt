@@ -1,3 +1,26 @@
+
+package com.example.navarres.view
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.navarres.viewmodel.*
+import com.example.navarres.model.data.Restaurant
+
+sealed class NavItem(val route: String, val title: String, val icon: ImageVector) {
+    object Restaurantes : NavItem("restaurantes", "Restaurantes", Icons.Default.Restaurant)
+    object Favoritos : NavItem("favoritos", "Favoritos", Icons.Default.Favorite)
+    object Perfil : NavItem("perfil", "Perfil", Icons.Default.Person)
+    object Ajustes : NavItem("config", "Ajustes", Icons.Default.Settings)
+}
+
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
