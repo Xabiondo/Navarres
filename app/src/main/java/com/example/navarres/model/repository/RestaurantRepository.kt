@@ -73,10 +73,10 @@ class RestaurantRepository {
     private suspend fun ejecutarConsulta(query: Query): List<Restaurant> {
         return try {
             val snapshot = query.get().await()
-            // Aquí ocurre la magia: convierte el JSON de Firebase a tu clase Restaurant
+
             snapshot.toObjects(Restaurant::class.java)
         } catch (e: Exception) {
-            // Es buena práctica loguear el error aquí con Log.e(...)
+
             emptyList()
         }
     }
