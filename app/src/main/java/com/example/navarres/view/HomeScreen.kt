@@ -81,12 +81,7 @@ fun HomeScreen(
                     val userRepo = remember { UserRepository() }
 
                     // Inicializamos el ViewModel pasando ambos repositorios
-                    val profileVM = remember {
-                        ProfileViewModel(
-                            authRepository = viewModel.authRepository, // Este asumimos que sí es público
-                            userRepository = userRepo
-                        )
-                    }
+                    val profileVM: ProfileViewModel = viewModel()
 
                     ProfileScreen(
                         viewModel = profileVM,
