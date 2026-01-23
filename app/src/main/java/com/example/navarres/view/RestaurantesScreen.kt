@@ -23,6 +23,7 @@ fun RestaurantesScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Encabezado de la pantalla
         item {
             Text(
                 text = "Gastronomía Foral",
@@ -32,15 +33,30 @@ fun RestaurantesScreen(
             )
         }
 
-        items(viewModel.listaRestaurantes) { restaurante ->
+        // Iteramos sobre la lista de objetos Restaurant (usando el nombre de variable de main)
+        items(viewModel.localesDePrueba) { restaurante ->
+
+            // Verificamos si este ID está en el mapa de favoritos
+            // Main utiliza 'identificador' en lugar del nombre para evitar duplicados
+            val isFav = viewModel.favoritosState[restaurante.identificador] ?: false
+
             RestaurantCard(
                 name = restaurante.nombre,
-                category = restaurante.categoria,
-                rating = 4, // Valor temporal
-                distance = "A 1.2 km", // Valor temporal
-                isFavorite = viewModel.favoritosState[restaurante.nombre] ?: false,
-                onFavoriteClick = { viewModel.toggleFavorite(restaurante.nombre) },
-                onClick = { onRestaurantClick(restaurante) }
+                // Si la categoría viene vacía del JSON, ponemos un valor por defecto
+                category = if (restaurante.categoria.isNotEmpty()) restaurante.categoria else "Cocina Navarra",
+                rating = 4, // Valor estático temporal
+                distance = restaurante.municipio, // Usamos el municipio como dato de ubicación
+                isFavorite = isFav,
+                
+                // Acción para marcar/desmarcar favorito pasando el objeto completo
+                onFavoriteClick = { 
+                    viewModel.toggleFavorite(restaurante) 
+                },
+                
+                // Acción para abrir el detalle (tu lógica de navegación)
+                onClick = { 
+                    onRestaurantClick(restaurante) 
+                }
             )
         }
     }

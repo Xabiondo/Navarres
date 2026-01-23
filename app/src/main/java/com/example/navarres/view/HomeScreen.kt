@@ -1,25 +1,3 @@
-package com.example.navarres.view
-
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.navarres.viewmodel.*
-import com.example.navarres.model.data.Restaurant
-
-sealed class NavItem(val route: String, val title: String, val icon: ImageVector) {
-    object Restaurantes : NavItem("restaurantes", "Restaurantes", Icons.Default.Restaurant)
-    object Favoritos : NavItem("favoritos", "Favoritos", Icons.Default.Favorite)
-    object Perfil : NavItem("perfil", "Perfil", Icons.Default.Person)
-    object Ajustes : NavItem("config", "Ajustes", Icons.Default.Settings)
-}
-
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
@@ -37,7 +15,6 @@ fun HomeScreen(
         if (isLoggedOut) onLogoutSuccess()
     }
 
-    // Gestionamos el botón atrás físico para cerrar el detalle sin salir de la pestaña
     BackHandler(enabled = selectedRestaurantForDetail != null) {
         selectedRestaurantForDetail = null
     }
@@ -59,7 +36,7 @@ fun HomeScreen(
                     NavigationBarItem(
                         selected = selectedTab == item.route,
                         onClick = {
-                            selectedRestaurantForDetail = null // Cerramos detalle al cambiar de pestaña
+                            selectedRestaurantForDetail = null
                             viewModel.selectTab(item.route)
                         },
                         label = { Text(title) },
@@ -75,7 +52,6 @@ fun HomeScreen(
                 .padding(paddingValues)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // Si hay un restaurante seleccionado, mostramos detalle SOBRE la pestaña actual
             if (selectedRestaurantForDetail != null) {
                 LaunchedEffect(selectedRestaurantForDetail) {
                     selectedRestaurantForDetail?.let { detailViewModel.selectRestaurant(it) }
@@ -87,7 +63,6 @@ fun HomeScreen(
                     onBack = { selectedRestaurantForDetail = null }
                 )
             } else {
-                // Navegación normal de pestañas
                 when (selectedTab) {
                     NavItem.Restaurantes.route -> {
                         val resVM: RestaurantesViewModel = viewModel()
@@ -101,8 +76,18 @@ fun HomeScreen(
                         FavoritosScreen(viewModel = favVM)
                     }
                     NavItem.Perfil.route -> {
-                        val perVM = remember { PerfilViewModel(viewModel.authRepository) }
-                        PerfilScreen(viewModel = perVM, onLogoutClick = { viewModel.logout() })
+                        // Usamos la lógica de la rama main que es la más actualizada
+                        val userRepo = remember { UserRepository() }
+                        val profileVM = remember {
+                            ProfileViewModel(
+                                authRepository = viewModel.authRepository,
+                                userRepository = userRepo
+                            )
+                        }
+                        ProfileScreen(
+                            viewModel = profileVM,
+                            onLogoutClick = { viewModel.logout() }
+                        )
                     }
                     NavItem.Ajustes.route -> {
                         ConfigScreen(viewModel = configViewModel)
