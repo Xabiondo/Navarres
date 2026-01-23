@@ -28,14 +28,24 @@ fun RestaurantesScreen(viewModel: RestaurantesViewModel) {
                 modifier = Modifier.padding(bottom = 8.dp)
             )
         }
-        items(viewModel.localesDePrueba) { (nombre, distancia, nota) ->
+
+        // Iteramos sobre tu lista de objetos Restaurant
+        items(viewModel.localesDePrueba) { restaurante ->
+
+            // Verificamos si este ID está en el mapa de favoritos
+            val isFav = viewModel.favoritosState[restaurante.identificador] ?: false
+
             RestaurantCard(
-                name = nombre,
-                category = "Cocina Navarra",
-                rating = nota,
-                distance = distancia,
-                isFavorite = viewModel.favoritosState[nombre] ?: false,
-                onFavoriteClick = { viewModel.toggleFavorite(nombre) },
+                name = restaurante.nombre,
+                // Usamos tus campos, con valores por defecto si vienen vacíos
+                category = if (restaurante.categoria.isNotEmpty()) restaurante.categoria else "Cocina Navarra",
+                rating = 4, // Tu modelo no tiene rating numérico, ponle un valor o calcúlalo
+                distance = restaurante.municipio, // Usamos municipio o dirección
+
+                isFavorite = isFav,
+
+                // Al hacer click, pasamos el OBJETO COMPLETO al ViewModel
+                onFavoriteClick = { viewModel.toggleFavorite(restaurante) },
                 onClick = { /* Navegación a detalle */ }
             )
         }

@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.navarres.model.repository.UserRepository // <--- IMPORTANTE: AÑADE ESTO
 import com.example.navarres.viewmodel.*
 
 // Definición de las rutas de navegación
@@ -22,7 +23,7 @@ sealed class NavItem(val route: String, val title: String, val icon: ImageVector
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    configViewModel: ConfigViewModel, // Recibimos el config global
+    configViewModel: ConfigViewModel,
     onLogoutSuccess: () -> Unit
 ) {
     val isLoggedOut by viewModel.isLoggedOut.collectAsState()
@@ -37,7 +38,6 @@ fun HomeScreen(
     Scaffold(
         bottomBar = {
             NavigationBar(
-                // Usamos colores del tema en lugar de fijos
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.primary
             ) {
@@ -64,7 +64,6 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                // Fondo dinámico que cambia según el modo claro/oscuro
                 .background(MaterialTheme.colorScheme.background)
         ) {
             when (selectedTab) {
@@ -77,11 +76,24 @@ fun HomeScreen(
                     FavoritosScreen(viewModel = favVM)
                 }
                 NavItem.Perfil.route -> {
-                    val perVM = remember { PerfilViewModel(viewModel.authRepository) }
-                    PerfilScreen(viewModel = perVM, onLogoutClick = { viewModel.logout() })
+                    // --- ARREGLO AQUÍ ---
+                    // Creamos el repositorio aquí porque HomeViewModel no nos lo da
+                    val userRepo = remember { UserRepository() }
+
+                    // Inicializamos el ViewModel pasando ambos repositorios
+                    val profileVM = remember {
+                        ProfileViewModel(
+                            authRepository = viewModel.authRepository, // Este asumimos que sí es público
+                            userRepository = userRepo
+                        )
+                    }
+
+                    ProfileScreen(
+                        viewModel = profileVM,
+                        onLogoutClick = { viewModel.logout() }
+                    )
                 }
                 NavItem.Ajustes.route -> {
-                    // Usamos el ViewModel de configuración inyectado
                     ConfigScreen(viewModel = configViewModel)
                 }
             }
