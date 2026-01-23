@@ -1,98 +1,110 @@
 package com.example.navarres.view
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.navarres.viewmodel.ConfigViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfigScreen(viewModel: ConfigViewModel) {
     val isDarkMode by viewModel.isDarkMode.collectAsState()
     val fontScale by viewModel.fontScale.collectAsState()
-    val selectedLanguage by viewModel.selectedLanguage.collectAsState()
-    val strings by viewModel.uiStrings.collectAsState() // Observa los textos
+    val currentLanguage by viewModel.currentLanguage.collectAsState()
+    val uiStrings by viewModel.uiStrings.collectAsState()
 
-    var showLanguageMenu by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
+
+    fun t(key: String, default: String): String = uiStrings[key] ?: default
+
+    // Sincronizamos las opciones con las nuevas llaves del ViewModel
+    val fontOptions = listOf(
+        0.85f to t("size_small", "Pequeño"),
+        1.0f to t("size_medium", "Mediano"),
+        1.15f to t("size_large", "Grande")
+    )
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = strings["title"] ?: "Configuración",
-            style = MaterialTheme.typography.headlineMedium
+            text = t("nav_config", "Configuración"),
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary
         )
 
         HorizontalDivider()
 
-        // --- APARIENCIA ---
-        Text(
-            text = (strings["appearance"] ?: "Apariencia").uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            color = Color.Gray
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(strings["dark_mode"] ?: "Modo Oscuro")
-            Switch(
-                checked = isDarkMode,
-                onCheckedChange = { viewModel.toggleDarkMode(it) }
-            )
-        }
-
-        Column {
-            Text("${strings["font_size"] ?: "Tamaño"}: ${(fontScale * 100).toInt()}%")
-            Slider(
-                value = fontScale,
-                onValueChange = { viewModel.updateFontScale(it) },
-                valueRange = 0.8f..1.5f,
-                steps = 5
-            )
-        }
-
-        // --- IDIOMA ---
-        Text(
-            text = (strings["language"] ?: "Idioma").uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            color = Color.Gray
-        )
-
-        Box {
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth().clickable { showLanguageMenu = true }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                Text(t("dark_mode", "Modo Oscuro"))
+                Switch(
+                    checked = isDarkMode,
+                    onCheckedChange = { viewModel.toggleDarkMode() } //
+                )
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = t("font_size", "Tamaño de fuente"),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
                 ) {
-                    Text(selectedLanguage)
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    val currentLabel = fontOptions.find { it.first == fontScale }?.second ?: t("size_medium", "Mediano")
+
+                    OutlinedTextField(
+                        value = currentLabel,
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        fontOptions.forEach { (scale, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    viewModel.updateFontScale(scale) //
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
-            DropdownMenu(
-                expanded = showLanguageMenu,
-                onDismissRequest = { showLanguageMenu = false }
-            ) {
-                listOf("Español", "English", "Euskara").forEach { lang ->
-                    DropdownMenuItem(
-                        text = { Text(lang) },
-                        onClick = {
-                            viewModel.updateLanguage(lang)
-                            showLanguageMenu = false
-                        }
-                    )
-                }
+        }
+
+        Text(text = t("nav_lang", "Idioma"), style = MaterialTheme.typography.titleMedium)
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val languages = listOf("es" to "Español", "en" to "English", "eu" to "Euskara")
+            languages.forEach { (code, label) ->
+                FilterChip(
+                    selected = currentLanguage == code,
+                    onClick = { viewModel.updateLanguage(code) }, //
+                    label = { Text(label) }
+                )
             }
         }
     }

@@ -7,36 +7,40 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.navarres.model.data.Restaurant
 import com.example.navarres.ui.theme.RestaurantCard
 import com.example.navarres.viewmodel.RestaurantesViewModel
 
 @Composable
-fun RestaurantesScreen(viewModel: RestaurantesViewModel) {
+fun RestaurantesScreen(
+    viewModel: RestaurantesViewModel,
+    onRestaurantClick: (Restaurant) -> Unit
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Text(
-                text = "Restaurantes Cercanos",
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color(0xFFB30000),
-                modifier = Modifier.padding(bottom = 8.dp)
+                text = "Gastronomía Foral",
+                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
         }
-        items(viewModel.localesDePrueba) { (nombre, distancia, nota) ->
+
+        items(viewModel.listaRestaurantes) { restaurante ->
             RestaurantCard(
-                name = nombre,
-                category = "Cocina Navarra",
-                rating = nota,
-                distance = distancia,
-                isFavorite = viewModel.favoritosState[nombre] ?: false,
-                onFavoriteClick = { viewModel.toggleFavorite(nombre) },
-                onClick = { /* Navegación a detalle */ }
+                name = restaurante.nombre,
+                category = restaurante.categoria,
+                rating = 4, // Valor temporal
+                distance = "A 1.2 km", // Valor temporal
+                isFavorite = viewModel.favoritosState[restaurante.nombre] ?: false,
+                onFavoriteClick = { viewModel.toggleFavorite(restaurante.nombre) },
+                onClick = { onRestaurantClick(restaurante) }
             )
         }
     }
