@@ -8,13 +8,17 @@ fun HomeScreen(
     val selectedTab by viewModel.selectedTab.collectAsState()
     val uiStrings by configViewModel.uiStrings.collectAsState()
 
+    // Estado para saber si hay un restaurante seleccionado para ver detalles
     var selectedRestaurantForDetail by remember { mutableStateOf<Restaurant?>(null) }
+    
+    // ViewModel para el detalle (se crea/recupera automáticamente)
     val detailViewModel: RestauranteDetailViewModel = viewModel()
 
     LaunchedEffect(isLoggedOut) {
         if (isLoggedOut) onLogoutSuccess()
     }
 
+    // Si estamos viendo un detalle, el botón "Atrás" del móvil cierra el detalle
     BackHandler(enabled = selectedRestaurantForDetail != null) {
         selectedRestaurantForDetail = null
     }
@@ -52,23 +56,30 @@ fun HomeScreen(
                 .padding(paddingValues)
                 .background(MaterialTheme.colorScheme.background)
         ) {
+            // LÓGICA PRINCIPAL: ¿Mostramos detalle o lista?
             if (selectedRestaurantForDetail != null) {
+                // 1. PANTALLA DE DETALLE
                 LaunchedEffect(selectedRestaurantForDetail) {
                     selectedRestaurantForDetail?.let { detailViewModel.selectRestaurant(it) }
                 }
-
+                
                 RestauranteDetailScreen(
                     viewModel = detailViewModel,
                     configViewModel = configViewModel,
                     onBack = { selectedRestaurantForDetail = null }
                 )
             } else {
+                // 2. PANTALLAS DEL MENÚ INFERIOR
                 when (selectedTab) {
                     NavItem.Restaurantes.route -> {
                         val resVM: RestaurantesViewModel = viewModel()
                         RestaurantesScreen(
                             viewModel = resVM,
-                            onRestaurantClick = { selectedRestaurantForDetail = it }
+                            onNavigateToDetail = { id -> 
+                                // Buscamos el restaurante y lo asignamos para abrir detalle
+                                val restaurant = resVM.getRestaurantById(id)
+                                selectedRestaurantForDetail = restaurant
+                            }
                         )
                     }
                     NavItem.Favoritos.route -> {
@@ -76,14 +87,11 @@ fun HomeScreen(
                         FavoritosScreen(viewModel = favVM)
                     }
                     NavItem.Perfil.route -> {
-                        // Usamos la lógica de la rama main que es la más actualizada
-                        val userRepo = remember { UserRepository() }
-                        val profileVM = remember {
-                            ProfileViewModel(
-                                authRepository = viewModel.authRepository,
-                                userRepository = userRepo
-                            )
-                        }
+                        // --- CORRECCIÓN CLAVE AQUÍ ---
+                        // Usamos viewModel() sin parámetros porque tu ProfileViewModel
+                        // ya inicializa sus repositorios internamente.
+                        val profileVM: ProfileViewModel = viewModel()
+
                         ProfileScreen(
                             viewModel = profileVM,
                             onLogoutClick = { viewModel.logout() }

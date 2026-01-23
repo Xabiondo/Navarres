@@ -3,62 +3,97 @@ package com.example.navarres.viewmodel
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.navarres.model.repository.AuthRepository
+import com.example.navarres.model.data.User
 import com.example.navarres.model.repository.UserRepository
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-// Estado de la UI
+// 1. AQUÍ DEFINIMOS LA CLASE QUE FALTABA
+// Esta clase agrupa los estados visuales (carga, foto temporal)
 data class ProfileUiState(
-    val photoUrl: String = "",
     val isLoading: Boolean = false,
-    val error: String? = null
+    val photoUrl: String = "" // URL temporal si subimos foto
 )
 
-// CLASE CORRECTA: ProfileViewModel
-class ProfileViewModel(
-    private val authRepository: AuthRepository,
-    private val userRepository: UserRepository
-) : ViewModel() {
+class ProfileViewModel : ViewModel() {
+    private val repository = UserRepository()
+    private val auth = FirebaseAuth.getInstance()
 
-    // 1. Email del usuario
-    private val _userEmail = MutableStateFlow(authRepository.getCurrentUser()?.email ?: "Usuario")
-    val userEmail = _userEmail.asStateFlow()
+    // 2. ESTADO DEL USUARIO (Datos de Base de Datos)
+    private val _userProfile = MutableStateFlow(User())
+    val userProfile = _userProfile.asStateFlow()
 
-    // 2. Estado de la foto
+    // 3. ESTADO DE LA UI (Cargas, errores, etc.) -> ESTO ES LO QUE TE DABA ERROR
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState = _uiState.asStateFlow()
 
     init {
-        loadCurrentUserProfile()
+        loadUserProfile()
     }
 
-    private fun loadCurrentUserProfile() {
-        val currentUser = authRepository.getCurrentUser()
-        if (currentUser?.photoUrl != null) {
-            _uiState.update { it.copy(photoUrl = currentUser.photoUrl.toString()) }
+    private fun loadUserProfile() {
+        val uid = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            // Activamos carga
+            _uiState.value = _uiState.value.copy(isLoading = true)
+
+            val user = repository.getUser(uid)
+            if (user != null) {
+                _userProfile.value = user
+            }
+
+            // Desactivamos carga
+            _uiState.value = _uiState.value.copy(isLoading = false)
         }
     }
 
-    // Lógica de subir foto
+    // Funciones para guardar texto (Bio, Ciudad, etc.)
+    fun updateBio(newBio: String) {
+        val uid = auth.currentUser?.uid ?: return
+        _userProfile.value = _userProfile.value.copy(bio = newBio)
+        viewModelScope.launch { repository.updateUserField(uid, "bio", newBio) }
+    }
+
+    fun updateCity(newCity: String) {
+        val uid = auth.currentUser?.uid ?: return
+        _userProfile.value = _userProfile.value.copy(city = newCity)
+        viewModelScope.launch { repository.updateUserField(uid, "city", newCity) }
+    }
+
+    fun updateEmailPrivacy(isPublic: Boolean) {
+        val uid = auth.currentUser?.uid ?: return
+        _userProfile.value = _userProfile.value.copy(isEmailPublic = isPublic)
+        viewModelScope.launch { repository.updateUserField(uid, "isEmailPublic", isPublic) }
+    }
+
+    // Función para subir foto
     fun onPhotoTaken(uri: Uri) {
-        val currentUser = authRepository.getCurrentUser()
-        if (currentUser != null) {
-            viewModelScope.launch {
-                _uiState.update { it.copy(isLoading = true, error = null) }
-                try {
-                    val newUrl = userRepository.uploadProfilePicture(currentUser.uid, uri)
-                    _uiState.update { it.copy(isLoading = false, photoUrl = newUrl) }
-                } catch (e: Exception) {
-                    _uiState.update { it.copy(isLoading = false, error = "Error: ${e.message}") }
-                }
+        val uid = auth.currentUser?.uid ?: return
+
+        viewModelScope.launch {
+            // 1. Ponemos el loading a TRUE
+            _uiState.value = _uiState.value.copy(isLoading = true)
+
+            try {
+                // 2. Subimos foto al Storage y obtenemos la URL
+                val downloadUrl = repository.uploadProfilePicture(uid, uri)
+
+                // 3. Actualizamos el User local y la UI State
+                _userProfile.value = _userProfile.value.copy(photoUrl = downloadUrl)
+                _uiState.value = _uiState.value.copy(photoUrl = downloadUrl) // Actualizamos también aquí por si acaso
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                // 4. Pase lo que pase, quitamos el loading
+                _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
     }
 
     fun logout() {
-        authRepository.logout()
+        auth.signOut()
     }
 }
