@@ -71,7 +71,7 @@ dependencies {
     implementation(libs.retrofit.converter.gson)
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("io.coil-kt:coil-compose:2.5.0")
-
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
 
 }

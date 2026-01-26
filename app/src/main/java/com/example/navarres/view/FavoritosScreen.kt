@@ -1,10 +1,10 @@
 package com.example.navarres.view
 
+import android.location.Location
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -17,45 +17,43 @@ import com.example.navarres.viewmodel.FavoritosViewModel
 
 @Composable
 fun FavoritosScreen(viewModel: FavoritosViewModel) {
+    val merindadesLat = 42.8137
+    val merindadesLon = -1.6406
 
-    // Recargar la lista cada vez que se entra a la pantalla
-    // (Por si añadiste uno nuevo en la pantalla Home y viniste aquí rápido)
     LaunchedEffect(Unit) {
         viewModel.cargarFavoritos()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
             text = "Tus Favoritos",
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            color = Color(0xFFB30000), // Tu color rojo
+            color = Color(0xFFB30000),
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
         if (viewModel.listaFavoritos.isEmpty()) {
-            // Mensaje por si no hay nada
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Aún no tienes sitios favoritos guardados.")
             }
         } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(viewModel.listaFavoritos) { restaurante ->
+                    val resultados = FloatArray(1)
+                    Location.distanceBetween(merindadesLat, merindadesLon, restaurante.latitud, restaurante.longitud, resultados)
+                    val distStr = "${String.format("%.1f", resultados[0] / 1000)} km"
+
+                    // EXTRAEMOS EL NÚMERO DE TENEDORES
+                    val numTenedores = restaurante.categoria.filter { it.isDigit() }.toIntOrNull() ?: 1
+
                     RestaurantCard(
                         name = restaurante.nombre,
-                        category = if (restaurante.categoria.isNotEmpty()) restaurante.categoria else "Cocina Navarra",
-                        rating = 4,
-                        distance = restaurante.municipio,
-                        isFavorite = true, // Aquí SIEMPRE es true porque es la lista de favoritos
-                        onFavoriteClick = {
-                            // Al clicar el corazón aquí, lo eliminamos de la lista
-                            viewModel.eliminarFavorito(restaurante)
-                        },
+                        category = restaurante.categoria,
+                        rating = numTenedores,
+                        distance = distStr,
+                        fotoUrl = restaurante.foto,
+                        isFavorite = true,
+                        onFavoriteClick = { viewModel.eliminarFavorito(restaurante) },
                         onClick = { /* Navegar al detalle */ }
                     )
                 }
