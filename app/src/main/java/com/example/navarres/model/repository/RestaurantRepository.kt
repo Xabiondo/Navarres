@@ -54,6 +54,10 @@ class RestaurantRepository {
 
         return ejecutarConsulta(query)
     }
+    suspend fun obtenerRestaurantesGenericos(limit: Int): List<Restaurant> {
+        val query = collectionRef.limit(limit.toLong())
+        return ejecutarConsulta(query)
+    }
 
     // ==========================================
     // 3. AUTOCOMPLETE (Buscar por nombre)
