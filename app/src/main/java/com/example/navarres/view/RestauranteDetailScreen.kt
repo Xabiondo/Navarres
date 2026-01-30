@@ -38,13 +38,11 @@ import com.google.maps.android.compose.*
 @Composable
 fun RestauranteDetailScreen(
     viewModel: RestauranteDetailViewModel,
-    configViewModel: ConfigViewModel, // MANTENIDO TAL CUAL PEDISTE
+    configViewModel: ConfigViewModel,
     onBack: () -> Unit
 ) {
     val restaurant by viewModel.selectedRestaurant.collectAsState()
     val context = LocalContext.current
-
-    // No necesitamos pedir ubicación aquí fuera, el ViewModel ya se encarga dentro con el Repo
 
     var isHoursExpanded by remember { mutableStateOf(false) }
     var showCarta by remember { mutableStateOf(false) }
@@ -60,7 +58,7 @@ fun RestauranteDetailScreen(
             cameraPositionState.position = CameraPosition.fromLatLngZoom(posRestaurante, 17f)
         }
 
-        // --- VISOR DE CARTA (Con protección anti-vacío) ---
+        // --- VISOR DE CARTA ---
         if (showCarta && !res.rutaCarta.isNullOrBlank()) {
             Dialog(onDismissRequest = { showCarta = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
@@ -114,8 +112,6 @@ fun RestauranteDetailScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             InfoRow(Icons.Default.LocationOn, "Dirección", res.direccion)
                             Spacer(Modifier.height(16.dp))
-
-                            // AHORA SÍ: Usamos la función interna que tira del LocationRepository
                             val distStr = viewModel.calculateDistanceStr(res.latitud, res.longitud)
                             InfoRow(Icons.Default.Schedule, "Distancia", distStr)
                         }
@@ -123,7 +119,7 @@ fun RestauranteDetailScreen(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // (RESTO DE LA PANTALLA: HORARIOS Y MAPA - IGUAL QUE SIEMPRE)
+                    // HORARIOS (MEJORADO)
                     val rotationState by animateFloatAsState(targetValue = if (isHoursExpanded) 180f else 0f)
                     Card(modifier = Modifier.fillMaxWidth().clickable { isHoursExpanded = !isHoursExpanded }, shape = RoundedCornerShape(20.dp)) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -137,9 +133,27 @@ fun RestauranteDetailScreen(
                             AnimatedVisibility(visible = isHoursExpanded) {
                                 Column(modifier = Modifier.padding(top = 16.dp)) {
                                     diasOrdenados.forEach { dia ->
-                                        val h = res.horarios[dia] ?: "Cerrado"
-                                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), Arrangement.SpaceBetween) {
-                                            Text(dia.replaceFirstChar { it.uppercase() }); Text(h, color = if(h.lowercase()=="cerrado") Color.Red else Color.Unspecified)
+                                        // LÓGICA DE DETECCIÓN DE HORARIO
+                                        val horarioTexto = if (res.horarios.containsKey(dia)) {
+                                            res.horarios[dia]
+                                        } else {
+                                            "Desconocido"
+                                        }
+
+                                        val colorTexto = when {
+                                            horarioTexto?.lowercase() == "cerrado" -> Color.Red
+                                            horarioTexto == "Desconocido" -> Color.Gray
+                                            else -> MaterialTheme.colorScheme.onSurface
+                                        }
+
+                                        Row(
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            Arrangement.SpaceBetween
+                                        ) {
+                                            Text(dia.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.Medium)
+                                            Text(horarioTexto ?: "Desconocido", color = colorTexto)
                                         }
                                     }
                                 }
@@ -168,7 +182,7 @@ fun RestauranteDetailScreen(
     }
 }
 
-// ... QuickActionButton e InfoRow (MANTENLOS ABAJO) ...
+// ... QuickActionButton e InfoRow ...
 @Composable
 fun QuickActionButton(icon: ImageVector, label: String, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp).clickable { onClick() }) {
