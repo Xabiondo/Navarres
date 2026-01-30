@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -42,7 +43,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Colores Corporativos (Estos se mantienen igual porque son la marca)
+// Colores Corporativos
 private val NavarresRed = Color(0xFFB30000)
 private val NavarresDarkRed = Color(0xFF800000)
 private val NavarresGreen = Color(0xFF2E7D32)
@@ -54,7 +55,7 @@ object ComposeFileProvider {
             directory.mkdirs()
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
             val file = File.createTempFile("JPEG_${timestamp}_", ".jpg", directory)
-            val authority = "com.example.navarrest2.fileprovider"
+            val authority = "com.example.navarrest2.fileprovider" // Asegúrate que coincida con tu AndroidManifest
             FileProvider.getUriForFile(context, authority, file)
         } catch (e: Exception) {
             null
@@ -71,12 +72,17 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
+    // Estados para diálogos de edición de texto
     var showEditBioDialog by remember { mutableStateOf(false) }
     var showEditCityDialog by remember { mutableStateOf(false) }
+
+    // Estado para el menú de selección de foto (Cámara vs Galería)
+    var showPhotoSourceDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
+    // 1. LAUNCHER DE CÁMARA
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { success ->
@@ -86,6 +92,16 @@ fun ProfileScreen(
         }
     )
 
+    // 2. LAUNCHER DE GALERÍA (NUEVO)
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.onPhotoTaken(uri)
+        }
+    }
+
+    // Función auxiliar para lanzar cámara
     fun launchCamera() {
         try {
             val uri = ComposeFileProvider.getImageUri(context)
@@ -104,12 +120,11 @@ fun ProfileScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // CAMBIO 1: Usar color de fondo del tema (Blanco en light, Gris oscuro en dark)
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState)
     ) {
 
-        // 1. HEADER
+        // HEADER
         Box(
             modifier = Modifier.fillMaxWidth().height(260.dp)
         ) {
@@ -139,7 +154,6 @@ fun ProfileScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(CircleShape)
-                            // El borde se adapta al fondo (blanco o negro)
                             .border(4.dp, MaterialTheme.colorScheme.background, CircleShape),
                         contentScale = ContentScale.Crop
                     )
@@ -147,7 +161,6 @@ fun ProfileScreen(
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         shape = CircleShape,
-                        // CAMBIO 2: Surface color adapta el fondo del icono
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         border = BorderStroke(4.dp, MaterialTheme.colorScheme.background),
                         shadowElevation = 4.dp
@@ -155,7 +168,6 @@ fun ProfileScreen(
                         Icon(
                             imageVector = Icons.Default.Person,
                             contentDescription = null,
-                            // CAMBIO 3: Tint adapta el color del icono
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(20.dp)
                         )
@@ -166,19 +178,22 @@ fun ProfileScreen(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = NavarresRed)
                 }
 
+                // BOTÓN DE CAMBIO DE FOTO
                 SmallFloatingActionButton(
-                    onClick = { if (!uiState.isLoading) launchCamera() },
+                    onClick = {
+                        if (!uiState.isLoading) showPhotoSourceDialog = true // Ahora abre el diálogo
+                    },
                     containerColor = NavarresGreen,
                     contentColor = Color.White,
                     modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-4).dp, y = (-4).dp),
                     shape = CircleShape
                 ) {
-                    Icon(Icons.Default.CameraAlt, "Editar", modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.CameraAlt, "Editar foto", modifier = Modifier.size(18.dp))
                 }
             }
         }
 
-        // 2. DATOS BÁSICOS
+        // DATOS BÁSICOS
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -192,41 +207,35 @@ fun ProfileScreen(
             Text(
                 text = displayName,
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                // CAMBIO 4: Texto principal adapta color
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = if (userProfile.isEmailPublic) userProfile.email else "Email privado",
                 style = MaterialTheme.typography.bodyMedium,
-                // CAMBIO 5: Texto secundario usa Variant
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // 3. ESTADÍSTICAS
+        // ESTADÍSTICAS
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             ProfileStatItem(number = "12", label = "Reseñas", icon = Icons.Outlined.RestaurantMenu)
-
-            // CAMBIO 6: Separador dinámico
             Box(modifier = Modifier.width(1.dp).height(40.dp).background(MaterialTheme.colorScheme.outlineVariant))
-
             val favCount = userProfile.favorites.size.toString()
             ProfileStatItem(number = favCount, label = "Favoritos", icon = Icons.Outlined.FavoriteBorder)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 4. BIOGRAFÍA
+        // BIOGRAFÍA
         ProfileSectionCard(title = "Sobre mí", onEditClick = { showEditBioDialog = true }) {
             Text(
                 text = userProfile.bio.ifEmpty { "Escribe algo sobre tus gustos gastronómicos..." },
                 style = MaterialTheme.typography.bodyLarge,
-                // CAMBIO 7: Color de texto condicional dinámico
                 color = if (userProfile.bio.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                 lineHeight = 24.sp
             )
@@ -234,7 +243,7 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 5. AJUSTES
+        // AJUSTES
         ProfileSectionCard(title = "Ajustes de Cuenta", showEdit = false) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -301,7 +310,6 @@ fun ProfileScreen(
                 onLogoutClick()
             },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(50.dp),
-            // CAMBIO 8: Colores del botón adaptados
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = NavarresRed
@@ -316,12 +324,68 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(32.dp))
     }
 
-    // DIÁLOGOS
+    // --- DIÁLOGOS ---
+
+    // 1. EDITAR BIOGRAFÍA
     if (showEditBioDialog) {
         EditDialog("Editar biografía", userProfile.bio, { showEditBioDialog = false }, { viewModel.updateBio(it); showEditBioDialog = false })
     }
+
+    // 2. EDITAR CIUDAD
     if (showEditCityDialog) {
         EditDialog("Editar ciudad", userProfile.city, { showEditCityDialog = false }, { viewModel.updateCity(it); showEditCityDialog = false })
+    }
+
+    // 3. ELEGIR ORIGEN FOTO (NUEVO)
+    if (showPhotoSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showPhotoSourceDialog = false },
+            title = { Text("Cambiar foto de perfil") },
+            text = {
+                Column {
+                    // OPCIÓN CÁMARA
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showPhotoSourceDialog = false
+                                launchCamera()
+                            }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, null, tint = NavarresRed)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Hacer una foto")
+                    }
+
+                    // OPCIÓN GALERÍA
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showPhotoSourceDialog = false
+                                galleryLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, null, tint = NavarresRed)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Elegir de la galería")
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showPhotoSourceDialog = false }) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
     }
 }
 
@@ -329,7 +393,6 @@ fun ProfileScreen(
 @Composable
 fun ProfileStatItem(number: String, label: String, icon: ImageVector) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // CAMBIO 9: Iconos y texto adaptados
         Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.height(4.dp))
         Text(number, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.onBackground)
@@ -339,12 +402,11 @@ fun ProfileStatItem(number: String, label: String, icon: ImageVector) {
 
 @Composable
 fun ProfileSectionCard(title: String, showEdit: Boolean = true, onEditClick: () -> Unit = {}, content: @Composable ColumnScope.() -> Unit) {
-    // CAMBIO 10: La tarjeta ahora usa el color "Surface" (Gris oscuro en dark mode, blanco en light)
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Un poco de elevación para que destaque en dark mode
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -360,7 +422,6 @@ fun ProfileSectionCard(title: String, showEdit: Boolean = true, onEditClick: () 
 @Composable
 fun EditDialog(title: String, initialValue: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var text by remember { mutableStateOf(initialValue) }
-    // CAMBIO 11: Diálogo adaptado
     AlertDialog(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -374,7 +435,6 @@ fun EditDialog(title: String, initialValue: String, onDismiss: () -> Unit, onCon
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Escribe aquí...") },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                // Solo forzamos el color corporativo en el borde activo y cursor
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = NavarresRed,
                     cursorColor = NavarresRed,

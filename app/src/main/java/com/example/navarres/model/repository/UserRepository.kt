@@ -4,8 +4,12 @@ import android.net.Uri
 import com.example.navarres.model.data.User
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
 import com.google.firebase.storage.FirebaseStorage
+// --- IMPORTS NUEVOS PARA TIEMPO REAL ---
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
 
 class UserRepository {
 
@@ -33,19 +37,13 @@ class UserRepository {
         }
     }
 
-    // 2. SUBIR FOTO (CÓDIGO CORREGIDO Y RELLENADO)
+    // 2. SUBIR FOTO
     suspend fun uploadProfilePicture(uid: String, imageUri: Uri): String {
         try {
-            // a) Referencia: carpeta "profile_images", nombre "UID.jpg"
             val imageRef = storageRef.child("profile_images/$uid.jpg")
-
-            // b) Subir el archivo (putFile)
             imageRef.putFile(imageUri).await()
-
-            // c) Obtener la URL pública de descarga
             val downloadUrl = imageRef.downloadUrl.await().toString()
 
-            // d) Guardar esa URL en el documento del usuario en Firestore
             db.collection("users").document(uid)
                 .update("photoUrl", downloadUrl)
                 .await()
@@ -54,7 +52,7 @@ class UserRepository {
 
         } catch (e: Exception) {
             e.printStackTrace()
-            throw e // Lanzamos el error para que el ViewModel sepa que falló
+            throw e
         }
     }
 
@@ -72,7 +70,7 @@ class UserRepository {
         }
     }
 
-    // 4. RECUPERAR FAVORITOS
+    // 4. RECUPERAR FAVORITOS (Versión estática, útil para comprobaciones puntuales)
     suspend fun getUserFavorites(uid: String): List<String> {
         return try {
             val snapshot = db.collection("users").document(uid).get().await()
@@ -82,7 +80,7 @@ class UserRepository {
         }
     }
 
-    // 5. ACTUALIZAR CAMPO GENÉRICO (Bio, Ciudad, etc.)
+    // 5. ACTUALIZAR CAMPO GENÉRICO
     suspend fun updateUserField(uid: String, fieldName: String, value: Any) {
         try {
             db.collection("users").document(uid)
@@ -93,7 +91,7 @@ class UserRepository {
         }
     }
 
-    // 6. OBTENER USUARIO COMPLETO
+    // 6. OBTENER USUARIO (Versión estática)
     suspend fun getUser(uid: String): User? {
         return try {
             val snapshot = db.collection("users").document(uid).get().await()
@@ -101,5 +99,29 @@ class UserRepository {
         } catch (e: Exception) {
             null
         }
+    }
+
+    // 7. OBTENER USUARIO EN TIEMPO REAL (NUEVA FUNCIÓN ⭐)
+    // Esta función mantiene una conexión abierta y avisa cada vez que cambia algo
+    fun getUserFlow(uid: String): Flow<User> = callbackFlow {
+        val docRef = db.collection("users").document(uid)
+
+        // Nos "suscribimos" a cambios
+        val subscription = docRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error) // Cerramos si hay error de conexión
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null && snapshot.exists()) {
+                val user = snapshot.toObject(User::class.java)
+                if (user != null) {
+                    trySend(user) // ¡Enviamos el dato nuevo!
+                }
+            }
+        }
+
+        // Esto se ejecuta cuando dejamos de escuchar (al cerrar la app o pantalla)
+        awaitClose { subscription.remove() }
     }
 }
