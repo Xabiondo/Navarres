@@ -1,5 +1,6 @@
 package com.example.navarres.viewmodel
 
+import android.location.Location
 import androidx.lifecycle.ViewModel
 import com.example.navarres.model.data.Restaurant
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,8 +14,11 @@ class RestauranteDetailViewModel : ViewModel() {
         _selectedRestaurant.value = restaurant
     }
 
-    // Simulación de cálculo de distancia (en una fase real usaría LocationServices)
     fun getDistanceToUser(resLat: Double, resLon: Double): String {
-        return "1.2 km" // Dato ficticio por ahora
+        val merindadesLat = 42.8137
+        val merindadesLon = -1.6406
+        val results = FloatArray(1)
+        Location.distanceBetween(merindadesLat, merindadesLon, resLat, resLon, results)
+        return "${String.format("%.1f", results[0] / 1000)} km"
     }
 }
