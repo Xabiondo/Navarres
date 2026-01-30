@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.navarres.viewmodel.*
 import com.example.navarres.model.data.Restaurant
+import com.google.firebase.auth.FirebaseAuth
 
 sealed class NavItem(val route: String, val title: String, val icon: ImageVector) {
     object Restaurantes : NavItem("restaurantes", "Restaurantes", Icons.Default.Restaurant)
@@ -26,21 +27,16 @@ fun HomeScreen(
     configViewModel: ConfigViewModel,
     onLogoutSuccess: () -> Unit
 ) {
-    val isLoggedOut by viewModel.isLoggedOut.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
     val uiStrings by configViewModel.uiStrings.collectAsState()
 
     // Estado para saber si hay un restaurante seleccionado para ver detalles
     var selectedRestaurantForDetail by remember { mutableStateOf<Restaurant?>(null) }
 
-    // ViewModel para el detalle
+    // ViewModel para el detalle (se mantiene vivo mientras estemos en Home)
     val detailViewModel: RestauranteDetailViewModel = viewModel()
 
-    LaunchedEffect(isLoggedOut) {
-        if (isLoggedOut) onLogoutSuccess()
-    }
-
-    // Si estamos viendo un detalle, el botón "Atrás" del móvil cierra el detalle
+    // Manejo del botón "Atrás" del sistema
     BackHandler(enabled = selectedRestaurantForDetail != null) {
         selectedRestaurantForDetail = null
     }
@@ -62,6 +58,7 @@ fun HomeScreen(
                     NavigationBarItem(
                         selected = selectedTab == item.route,
                         onClick = {
+                            // Si cambiamos de pestaña, limpiamos el detalle seleccionado
                             selectedRestaurantForDetail = null
                             viewModel.selectTab(item.route)
                         },
@@ -98,7 +95,6 @@ fun HomeScreen(
                         RestaurantesScreen(
                             viewModel = resVM,
                             onNavigateToDetail = { id ->
-                                // Buscamos el restaurante en la lista general
                                 val restaurant = resVM.getRestaurantById(id)
                                 selectedRestaurantForDetail = restaurant
                             }
@@ -106,24 +102,27 @@ fun HomeScreen(
                     }
                     NavItem.Favoritos.route -> {
                         val favVM: FavoritosViewModel = viewModel()
-
-                        // --- AQUÍ ESTABA EL ERROR ---
-                        // Ahora pasamos el lambda onNavigateToDetail
                         FavoritosScreen(
                             viewModel = favVM,
                             onNavigateToDetail = { id ->
-                                // Buscamos el restaurante dentro de la lista de favoritos
-                                // (Asumiendo que listaFavoritos es accesible públicamente en el VM)
                                 val restaurant = favVM.listaFavoritos.find { it.nombre == id }
                                 selectedRestaurantForDetail = restaurant
                             }
                         )
                     }
                     NavItem.Perfil.route -> {
-                        val profileVM: ProfileViewModel = viewModel()
+                        // --- CORRECCIÓN IMPORTANTE: KEY ÚNICA POR USUARIO ---
+                        // Obtenemos el UID actual. Si cambia, Compose destruye el VM viejo y crea uno nuevo.
+                        val currentUid = FirebaseAuth.getInstance().currentUser?.uid ?: "unknown"
+
+                        val profileVM: ProfileViewModel = viewModel(key = "profile_$currentUid")
+
                         ProfileScreen(
                             viewModel = profileVM,
-                            onLogoutClick = { viewModel.logout() }
+                            onLogoutClick = {
+                                viewModel.logout()     // 1. Desconectar de Firebase en Home
+                                onLogoutSuccess()      // 2. Avisar a MainActivity para cambiar pantalla
+                            }
                         )
                     }
                     NavItem.Ajustes.route -> {
