@@ -16,7 +16,11 @@ import com.example.navarres.ui.theme.RestaurantCard
 import com.example.navarres.viewmodel.FavoritosViewModel
 
 @Composable
-fun FavoritosScreen(viewModel: FavoritosViewModel) {
+fun FavoritosScreen(
+    viewModel: FavoritosViewModel,
+    onNavigateToDetail: (String) -> Unit // Añadido para poder navegar al pulsar
+) {
+    // Coordenadas por defecto (o podrías inyectar la ubicación real del usuario si quisieras)
     val merindadesLat = 42.8137
     val merindadesLon = -1.6406
 
@@ -34,27 +38,27 @@ fun FavoritosScreen(viewModel: FavoritosViewModel) {
 
         if (viewModel.listaFavoritos.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Aún no tienes sitios favoritos guardados.")
+                Text("Aún no tienes sitios favoritos guardados.", color = Color.Gray)
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(viewModel.listaFavoritos) { restaurante ->
+
+                    // Cálculo de distancia
                     val resultados = FloatArray(1)
                     Location.distanceBetween(merindadesLat, merindadesLon, restaurante.latitud, restaurante.longitud, resultados)
                     val distStr = "${String.format("%.1f", resultados[0] / 1000)} km"
 
-                    // EXTRAEMOS EL NÚMERO DE TENEDORES
-                    val numTenedores = restaurante.categoria.filter { it.isDigit() }.toIntOrNull() ?: 1
-
                     RestaurantCard(
                         name = restaurante.nombre,
                         category = restaurante.categoria,
-                        rating = numTenedores,
+                        // CAMBIO: Pasamos directamente el Double (ej: 4.4)
+                        rating = restaurante.valoracion,
                         distance = distStr,
                         fotoUrl = restaurante.foto,
-                        isFavorite = true,
+                        isFavorite = true, // En esta pantalla siempre son true
                         onFavoriteClick = { viewModel.eliminarFavorito(restaurante) },
-                        onClick = { /* Navegar al detalle */ }
+                        onClick = { onNavigateToDetail(restaurante.nombre) }
                     )
                 }
             }

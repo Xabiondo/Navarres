@@ -29,16 +29,7 @@ class ConfigViewModel : ViewModel() {
             "font_size" to "Tamaño de fuente",
             "size_small" to "Pequeño",
             "size_medium" to "Mediano",
-            "size_large" to "Grande",
-            "btn_close" to "Cerrar",
-            "action_route" to "Ruta",
-            "action_call" to "Llamar",
-            "action_share" to "Compartir",
-            "title_specialties" to "Especialidades",
-            "label_location" to "Ubicación",
-            "label_distance" to "Distancia",
-            "label_municipality" to "Municipio",
-            "title_map" to "¿Dónde encontrarnos?"
+            "size_large" to "Grande"
         ),
         "en" to mapOf(
             "nav_rest" to "Restaurants",
@@ -50,16 +41,7 @@ class ConfigViewModel : ViewModel() {
             "font_size" to "Font Size",
             "size_small" to "Small",
             "size_medium" to "Medium",
-            "size_large" to "Large",
-            "btn_close" to "Close",
-            "action_route" to "Route",
-            "action_call" to "Call",
-            "action_share" to "Share",
-            "title_specialties" to "Specialties",
-            "label_location" to "Location",
-            "label_distance" to "Distance",
-            "label_municipality" to "Municipality",
-            "title_map" to "Where to find us?"
+            "size_large" to "Large"
         ),
         "eu" to mapOf(
             "nav_rest" to "Jatetxeak",
@@ -71,33 +53,24 @@ class ConfigViewModel : ViewModel() {
             "font_size" to "Letra-tamaina",
             "size_small" to "Txikia",
             "size_medium" to "Ertaina",
-            "size_large" to "Handia",
-            "btn_close" to "Itxi",
-            "action_route" to "Ibilbidea",
-            "action_call" to "Deitu",
-            "action_share" to "Partekatu",
-            "title_specialties" to "Espezialitateak",
-            "label_location" to "Kokalekua",
-            "label_distance" to "Distantzia",
-            "label_municipality" to "Udalerria",
-            "title_map" to "Non aurkitu gaitzakezu?"
+            "size_large" to "Handia"
         )
     )
 
     init {
-        updateLanguage("es") //
+        updateLanguage("es")
     }
 
     fun updateLanguage(lang: String) {
         _currentLanguage.value = lang
-        _uiStrings.value = translations[lang] ?: translations["es"]!! //
+        _uiStrings.value = translations[lang] ?: translations["es"]!!
     }
 
     fun toggleDarkMode() {
-        _isDarkMode.update { !it } //
+        _isDarkMode.update { !it }
     }
 
     fun updateFontScale(scale: Float) {
-        _fontScale.value = scale //
+        _fontScale.value = scale
     }
 }

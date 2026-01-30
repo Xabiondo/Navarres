@@ -1,6 +1,8 @@
 package com.example.navarres.view
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +22,6 @@ fun ConfigScreen(viewModel: ConfigViewModel) {
 
     fun t(key: String, default: String): String = uiStrings[key] ?: default
 
-    // Sincronizamos las opciones con las nuevas llaves del ViewModel
     val fontOptions = listOf(
         0.85f to t("size_small", "Pequeño"),
         1.0f to t("size_medium", "Mediano"),
@@ -30,7 +31,8 @@ fun ConfigScreen(viewModel: ConfigViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
@@ -41,6 +43,7 @@ fun ConfigScreen(viewModel: ConfigViewModel) {
 
         HorizontalDivider()
 
+        // Tarjeta Modo Oscuro
         Card(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -50,11 +53,12 @@ fun ConfigScreen(viewModel: ConfigViewModel) {
                 Text(t("dark_mode", "Modo Oscuro"))
                 Switch(
                     checked = isDarkMode,
-                    onCheckedChange = { viewModel.toggleDarkMode() } //
+                    onCheckedChange = { viewModel.toggleDarkMode() }
                 )
             }
         }
 
+        // Tarjeta Tamaño Fuente
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -85,7 +89,7 @@ fun ConfigScreen(viewModel: ConfigViewModel) {
                             DropdownMenuItem(
                                 text = { Text(label) },
                                 onClick = {
-                                    viewModel.updateFontScale(scale) //
+                                    viewModel.updateFontScale(scale)
                                     expanded = false
                                 }
                             )
@@ -95,6 +99,7 @@ fun ConfigScreen(viewModel: ConfigViewModel) {
             }
         }
 
+        // Selección de Idioma
         Text(text = t("nav_lang", "Idioma"), style = MaterialTheme.typography.titleMedium)
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -102,7 +107,7 @@ fun ConfigScreen(viewModel: ConfigViewModel) {
             languages.forEach { (code, label) ->
                 FilterChip(
                     selected = currentLanguage == code,
-                    onClick = { viewModel.updateLanguage(code) }, //
+                    onClick = { viewModel.updateLanguage(code) },
                     label = { Text(label) }
                 )
             }

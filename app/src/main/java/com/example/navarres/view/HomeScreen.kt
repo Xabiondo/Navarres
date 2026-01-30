@@ -1,4 +1,3 @@
-
 package com.example.navarres.view
 
 import androidx.activity.compose.BackHandler
@@ -33,8 +32,8 @@ fun HomeScreen(
 
     // Estado para saber si hay un restaurante seleccionado para ver detalles
     var selectedRestaurantForDetail by remember { mutableStateOf<Restaurant?>(null) }
-    
-    // ViewModel para el detalle (se crea/recupera automáticamente)
+
+    // ViewModel para el detalle
     val detailViewModel: RestauranteDetailViewModel = viewModel()
 
     LaunchedEffect(isLoggedOut) {
@@ -85,7 +84,7 @@ fun HomeScreen(
                 LaunchedEffect(selectedRestaurantForDetail) {
                     selectedRestaurantForDetail?.let { detailViewModel.selectRestaurant(it) }
                 }
-                
+
                 RestauranteDetailScreen(
                     viewModel = detailViewModel,
                     configViewModel = configViewModel,
@@ -98,8 +97,8 @@ fun HomeScreen(
                         val resVM: RestaurantesViewModel = viewModel()
                         RestaurantesScreen(
                             viewModel = resVM,
-                            onNavigateToDetail = { id -> 
-                                // Buscamos el restaurante y lo asignamos para abrir detalle
+                            onNavigateToDetail = { id ->
+                                // Buscamos el restaurante en la lista general
                                 val restaurant = resVM.getRestaurantById(id)
                                 selectedRestaurantForDetail = restaurant
                             }
@@ -107,14 +106,21 @@ fun HomeScreen(
                     }
                     NavItem.Favoritos.route -> {
                         val favVM: FavoritosViewModel = viewModel()
-                        FavoritosScreen(viewModel = favVM)
+
+                        // --- AQUÍ ESTABA EL ERROR ---
+                        // Ahora pasamos el lambda onNavigateToDetail
+                        FavoritosScreen(
+                            viewModel = favVM,
+                            onNavigateToDetail = { id ->
+                                // Buscamos el restaurante dentro de la lista de favoritos
+                                // (Asumiendo que listaFavoritos es accesible públicamente en el VM)
+                                val restaurant = favVM.listaFavoritos.find { it.nombre == id }
+                                selectedRestaurantForDetail = restaurant
+                            }
+                        )
                     }
                     NavItem.Perfil.route -> {
-                        // --- CORRECCIÓN CLAVE AQUÍ ---
-                        // Usamos viewModel() sin parámetros porque tu ProfileViewModel
-                        // ya inicializa sus repositorios internamente.
                         val profileVM: ProfileViewModel = viewModel()
-
                         ProfileScreen(
                             viewModel = profileVM,
                             onLogoutClick = { viewModel.logout() }

@@ -1,7 +1,8 @@
 package com.example.navarres.model.data
 data class Restaurant(
     val nombre: String = "",
-    val categoria: String = "",
+    val categoria: String = "",     // Ej: "Restaurante", "Asador"
+    val modalidad: String = "",
     val direccion: String = "",
     val localidad: String = "",
     val municipio: String = "",
