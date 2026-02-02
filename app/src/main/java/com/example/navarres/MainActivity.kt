@@ -4,18 +4,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.navarres.model.repository.AuthRepository
 import com.example.navarres.model.repository.UserRepository
-// Make sure this import is present
 import com.example.navarres.view.HomeScreen
 import com.example.navarres.view.LoginScreen
 import com.example.navarres.view.RegisterScreen
 import com.example.navarres.ui.theme.NavarresTheme
 import com.example.navarres.viewmodel.ConfigViewModel
+import com.example.navarres.viewmodel.AppThemeMode // Importa el Enum
 import com.example.navarres.viewmodel.HomeViewModel
 import com.example.navarres.viewmodel.LoginViewModel
 import com.example.navarres.viewmodel.RegisterViewModel
@@ -30,16 +29,26 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            // 1. Obtenemos la configuración global
             val configViewModel: ConfigViewModel = viewModel()
-            val isDarkMode by configViewModel.isDarkMode.collectAsState()
+
+            // 1. Observamos qué modo ha elegido el usuario (Sistema, Claro u Oscuro)
+            val currentMode by configViewModel.themeMode.collectAsState()
             val fontScale by configViewModel.fontScale.collectAsState()
 
-            // 2. Usamos NavarresTheme como ÚNICO proveedor de estilo.
-            // Nota: He quitado el MaterialTheme anidado porque causaba conflictos de colores.
+            // 2. Detectamos cómo está el móvil ahora mismo
+            val systemIsDark = isSystemInDarkTheme()
+
+            // 3. CALCULADORA DE TEMA: Esta es la lógica "Instagram"
+            val useDarkTheme = when (currentMode) {
+                AppThemeMode.LIGHT -> false           // Forzar Claro
+                AppThemeMode.DARK -> true             // Forzar Oscuro
+                AppThemeMode.SYSTEM -> systemIsDark   // Obedecer al móvil
+            }
+
+            // 4. Aplicamos el resultado
             NavarresTheme(
-                darkTheme = isDarkMode,
-                fontScale = fontScale // Asegúrate de que tu Theme.kt reciba esto
+                darkTheme = useDarkTheme, // Pasamos el resultado calculado
+                fontScale = fontScale
             ) {
                 var isUserLoggedIn by remember {
                     mutableStateOf(authRepository.getCurrentUser() != null)
@@ -49,11 +58,13 @@ class MainActivity : ComponentActivity() {
                     val homeViewModel = remember { HomeViewModel(authRepository) }
                     HomeScreen(
                         viewModel = homeViewModel,
-                        configViewModel = configViewModel,
+                        configViewModel = configViewModel, // Pasamos el VM para poder cambiar el modo
                         onLogoutSuccess = { isUserLoggedIn = false }
                     )
                 } else {
+                    // ... (Tu lógica de login/registro sigue igual) ...
                     var currentAuthScreen by remember { mutableStateOf("login") }
+                    // ... (Mismo código de siempre aquí dentro)
                     when (currentAuthScreen) {
                         "login" -> {
                             val loginViewModel = remember { LoginViewModel(authRepository) }

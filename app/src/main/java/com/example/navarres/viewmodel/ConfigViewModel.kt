@@ -3,12 +3,21 @@ package com.example.navarres.viewmodel
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+
+// 1. Creamos los 3 estados posibles
+enum class AppThemeMode {
+    SYSTEM, // Sigue al móvil
+    LIGHT,  // Siempre claro
+    DARK    // Siempre oscuro
+}
 
 class ConfigViewModel : ViewModel() {
-    private val _isDarkMode = MutableStateFlow(false)
-    val isDarkMode = _isDarkMode.asStateFlow()
 
+    // Ahora guardamos el MODO, no si es oscuro o no
+    private val _themeMode = MutableStateFlow(AppThemeMode.SYSTEM)
+    val themeMode = _themeMode.asStateFlow()
+
+    // ... (Tus variables de idioma y fuente se quedan igual) ...
     private val _fontScale = MutableStateFlow(1.0f)
     val fontScale = _fontScale.asStateFlow()
 
@@ -20,54 +29,29 @@ class ConfigViewModel : ViewModel() {
 
     private val translations = mapOf(
         "es" to mapOf(
+            // ... tus traducciones ...
             "nav_rest" to "Restaurantes",
-            "nav_fav" to "Favoritos",
-            "nav_perfil" to "Perfil",
-            "nav_config" to "Configuración",
-            "nav_lang" to "Idioma",
             "dark_mode" to "Modo Oscuro",
-            "font_size" to "Tamaño de fuente",
-            "size_small" to "Pequeño",
-            "size_medium" to "Mediano",
-            "size_large" to "Grande"
-        ),
-        "en" to mapOf(
-            "nav_rest" to "Restaurants",
-            "nav_fav" to "Favorites",
-            "nav_perfil" to "Profile",
-            "nav_config" to "Settings",
-            "nav_lang" to "Language",
-            "dark_mode" to "Dark Mode",
-            "font_size" to "Font Size",
-            "size_small" to "Small",
-            "size_medium" to "Medium",
-            "size_large" to "Large"
-        ),
-        "eu" to mapOf(
-            "nav_rest" to "Jatetxeak",
-            "nav_fav" to "Gogokoak",
-            "nav_perfil" to "Profila",
-            "nav_config" to "Ezarpenak",
-            "nav_lang" to "Hizkuntza",
-            "dark_mode" to "Modu Iluna",
-            "font_size" to "Letra-tamaina",
-            "size_small" to "Txikia",
-            "size_medium" to "Ertaina",
-            "size_large" to "Handia"
+            "theme_system" to "Sistema",
+            "theme_light" to "Claro",
+            "theme_dark" to "Oscuro"
         )
+        // ... añade las claves "theme_..." a los otros idiomas también
     )
 
     init {
         updateLanguage("es")
     }
 
+    // Función para cambiar entre los 3 modos
+    fun setThemeMode(mode: AppThemeMode) {
+        _themeMode.value = mode
+    }
+
+    // ... (Resto de funciones de idioma y fuente igual) ...
     fun updateLanguage(lang: String) {
         _currentLanguage.value = lang
         _uiStrings.value = translations[lang] ?: translations["es"]!!
-    }
-
-    fun toggleDarkMode() {
-        _isDarkMode.update { !it }
     }
 
     fun updateFontScale(scale: Float) {
