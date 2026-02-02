@@ -1,7 +1,8 @@
-package com.example.navarres.model.data
+package com.example.navarres.model.data;
 data class Restaurant(
+    val id: String = "", // Document ID de Firestore
     val nombre: String = "",
-    val categoria: String = "",     // Ej: "Restaurante", "Asador"
+    val categoria: String = "",
     val modalidad: String = "",
     val direccion: String = "",
     val localidad: String = "",

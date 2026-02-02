@@ -35,13 +35,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.example.navarres.viewmodel.ProfileViewModel
+import com.example.navarres.model.data.Restaurant
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 
 // Colores Corporativos
 private val NavarresRed = Color(0xFFB30000)
@@ -78,6 +82,9 @@ fun ProfileScreen(
 
     // Estado para el menú de selección de foto (Cámara vs Galería)
     var showPhotoSourceDialog by remember { mutableStateOf(false) }
+
+    // NUEVO: Estado para el diálogo de reclamación
+    var showClaimDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
@@ -181,7 +188,7 @@ fun ProfileScreen(
                 // BOTÓN DE CAMBIO DE FOTO
                 SmallFloatingActionButton(
                     onClick = {
-                        if (!uiState.isLoading) showPhotoSourceDialog = true // Ahora abre el diálogo
+                        if (!uiState.isLoading) showPhotoSourceDialog = true
                     },
                     containerColor = NavarresGreen,
                     contentColor = Color.White,
@@ -245,6 +252,25 @@ fun ProfileScreen(
 
         // AJUSTES
         ProfileSectionCard(title = "Ajustes de Cuenta", showEdit = false) {
+
+            // NUEVO: BOTÓN PARA RECLAMAR DUEÑO
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showClaimDialog = true }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Verified, null, tint = NavarresGreen, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text("¿Eres dueño de un negocio?", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text("Haz clic aquí para reclamar tu local", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -326,24 +352,25 @@ fun ProfileScreen(
 
     // --- DIÁLOGOS ---
 
-    // 1. EDITAR BIOGRAFÍA
     if (showEditBioDialog) {
         EditDialog("Editar biografía", userProfile.bio, { showEditBioDialog = false }, { viewModel.updateBio(it); showEditBioDialog = false })
     }
 
-    // 2. EDITAR CIUDAD
     if (showEditCityDialog) {
         EditDialog("Editar ciudad", userProfile.city, { showEditCityDialog = false }, { viewModel.updateCity(it); showEditCityDialog = false })
     }
 
-    // 3. ELEGIR ORIGEN FOTO (NUEVO)
+    // NUEVO: Diálogo de Reclamación
+    if (showClaimDialog) {
+        ClaimRestaurantDialog(viewModel = viewModel, onDismiss = { showClaimDialog = false })
+    }
+
     if (showPhotoSourceDialog) {
         AlertDialog(
             onDismissRequest = { showPhotoSourceDialog = false },
             title = { Text("Cambiar foto de perfil") },
             text = {
                 Column {
-                    // OPCIÓN CÁMARA
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -359,7 +386,6 @@ fun ProfileScreen(
                         Text("Hacer una foto")
                     }
 
-                    // OPCIÓN GALERÍA
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -390,6 +416,178 @@ fun ProfileScreen(
 }
 
 // --- COMPONENTES AUXILIARES ---
+
+@Composable
+fun ClaimRestaurantDialog(viewModel: ProfileViewModel, onDismiss: () -> Unit) {
+    // Estados del formulario
+    var query by remember { mutableStateOf("") }
+    var selectedRest by remember { mutableStateOf<com.example.navarres.model.data.Restaurant?>(null) }
+
+    // Campos adicionales
+    var cargo by remember { mutableStateOf("") }
+    var telefono by remember { mutableStateOf("") }
+    var cif by remember { mutableStateOf("") }
+    var mensaje by remember { mutableStateOf("") }
+    var aceptaTerminos by remember { mutableStateOf(false) }
+
+    val sugerencias by viewModel.busquedaRestaurantes.collectAsState()
+    val context = LocalContext.current
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.95f), // Casi pantalla completa
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(12.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header Fijo
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(NavarresRed)
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        "Verificación de Propietario",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Contenido Scrolleable
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // SECCIÓN 1: EL LOCAL
+                    Text("1. Identificación del Local", fontWeight = FontWeight.Bold, color = NavarresRed)
+                    OutlinedTextField(
+                        value = if (selectedRest != null) selectedRest!!.nombre else query,
+                        onValueChange = { query = it; selectedRest = null; viewModel.buscarRestaurantes(it) },
+                        label = { Text("Buscar Restaurante...") },
+                        modifier = Modifier.fillMaxWidth(),
+                        leadingIcon = { Icon(Icons.Default.Search, null, tint = NavarresRed) },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    // Lista de sugerencias (solo si no hay seleccionado)
+                    if (selectedRest == null && query.length >= 2) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.4f)),
+                            modifier = Modifier.heightIn(max = 200.dp)
+                        ) {
+                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                                sugerencias.forEach { rest ->
+                                    ListItem(
+                                        headlineContent = { Text(rest.nombre) },
+                                        supportingContent = { Text(rest.localidad) },
+                                        modifier = Modifier.clickable { selectedRest = rest; query = rest.nombre }
+                                    )
+                                    HorizontalDivider(color = Color.LightGray.copy(0.3f))
+                                }
+                            }
+                        }
+                    }
+
+                    // SECCIÓN 2: INFORMACIÓN PERSONAL
+                    Text("2. Información del Solicitante", fontWeight = FontWeight.Bold, color = NavarresRed)
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = cargo,
+                            onValueChange = { cargo = it },
+                            label = { Text("Cargo (Ej: Gerente)") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = cif,
+                            onValueChange = { cif = it },
+                            label = { Text("CIF / NIF") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = telefono,
+                        onValueChange = { telefono = it },
+                        label = { Text("Teléfono de contacto directo") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone)
+                    )
+
+                    // SECCIÓN 3: JUSTIFICACIÓN
+                    Text("3. Detalles de la reclamación", fontWeight = FontWeight.Bold, color = NavarresRed)
+                    OutlinedTextField(
+                        value = mensaje,
+                        onValueChange = { mensaje = it },
+                        label = { Text("¿Por qué reclamas este local?") },
+                        placeholder = { Text("Ej: Soy el dueño legal desde 2015...") },
+                        modifier = Modifier.fillMaxWidth().height(120.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    // Aviso legal
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(checked = aceptaTerminos, onCheckedChange = { aceptaTerminos = it })
+                        Text(
+                            "Certifico que la información es verídica y soy representante legal del negocio.",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
+
+                // Footer con botones
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                        Text("CANCELAR", color = Color.Gray)
+                    }
+                    Button(
+                        onClick = {
+                            val datos = mapOf(
+                                "cargo" to cargo,
+                                "cif" to cif,
+                                "telefono" to telefono,
+                                "mensaje" to mensaje
+                            )
+                            viewModel.enviarSolicitudExtensa(selectedRest!!.id, selectedRest!!.nombre, datos) { success ->
+                                if (success) {
+                                    Toast.makeText(context, "Solicitud en revisión técnica", Toast.LENGTH_LONG).show()
+                                    onDismiss()
+                                }
+                            }
+                        },
+                        enabled = selectedRest != null && cargo.isNotBlank() && cif.isNotBlank() && aceptaTerminos,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = NavarresRed),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("ENVIAR DOSSIER")
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun ProfileStatItem(number: String, label: String, icon: ImageVector) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {

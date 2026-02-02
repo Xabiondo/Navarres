@@ -1,6 +1,7 @@
 package com.example.navarres.model.repository
 
 import android.net.Uri
+import com.example.navarres.model.data.OwnerRequest
 import com.example.navarres.model.data.User
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -124,4 +125,43 @@ class UserRepository {
         // Esto se ejecuta cuando dejamos de escuchar (al cerrar la app o pantalla)
         awaitClose { subscription.remove() }
     }
+
+    // En UserRepository.kt
+// Añade esto a tu UserRepository.kt
+    suspend fun enviarSolicitudDueno(
+        uid: String,
+        email: String,
+        restauranteId: String,
+        nombreRest: String,
+        mensaje: String
+    ): Boolean {
+        return try {
+            val solicitud = hashMapOf(
+                "uid" to uid,
+                "email" to email,
+                "restauranteId" to restauranteId,
+                "nombreRestaurante" to nombreRest,
+                "mensaje" to mensaje,
+                "fecha" to System.currentTimeMillis(),
+                "estado" to "pendiente"
+            )
+            db.collection("solicitudes_dueño").add(solicitud).await()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun enviarSolicitudGenerica(datos: Map<String, Any>): Boolean {
+        return try {
+            db.collection("solicitudes_dueno")
+                .add(datos)
+                .await()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+
 }
