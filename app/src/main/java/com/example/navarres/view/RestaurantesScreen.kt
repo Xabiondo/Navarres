@@ -13,16 +13,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.NearMe
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.navarres.ui.theme.RestaurantCard
+import com.example.navarres.util.HorarioHelper
 import com.example.navarres.viewmodel.RestaurantesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,15 +84,13 @@ fun RestaurantesScreen(
 
                 Spacer(Modifier.width(8.dp))
 
-                // --- BOTÓN GPS (TOGGLE) ---
+                // --- BOTÓN GPS ---
                 val hasLocation = viewModel.userLocation != null
                 FilledIconButton(
                     onClick = {
                         if (hasLocation) {
-                            // Si ya tenemos ubicación, la QUITAMOS
                             viewModel.clearLocationFilter()
                         } else {
-                            // Si no, pedimos permisos y la activamos
                             locationPermissionLauncher.launch(
                                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
                             )
@@ -106,7 +103,6 @@ fun RestaurantesScreen(
                         contentColor = if (hasLocation) Color.White else Color.Gray
                     )
                 ) {
-                    // Cambiamos el icono según el estado
                     if (hasLocation) {
                         Icon(Icons.Default.LocationDisabled, "Desactivar Ubicación")
                     } else {
@@ -132,11 +128,25 @@ fun RestaurantesScreen(
 
             // --- 2. CHIPS DE FILTROS ACTIVOS ---
             if (viewModel.filterRating > 0 || viewModel.filterPrice > 0) {
-                LazyRow(modifier = Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (viewModel.filterRating > 0) item { ActiveFilterChip("${viewModel.filterRating}+ Estrellas") { viewModel.updateFilters(0, viewModel.filterPrice) } }
-                    if (viewModel.filterPrice > 0) item {
-                        val labels = listOf("", "€ Económico", "€€ Medio", "€€€ Alto")
-                        ActiveFilterChip(labels.getOrElse(viewModel.filterPrice){""}) { viewModel.updateFilters(viewModel.filterRating, 0) }
+                LazyRow(
+                    modifier = Modifier.padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (viewModel.filterRating > 0) {
+                        item {
+                            ActiveFilterChip("${viewModel.filterRating}+ Estrellas") {
+                                viewModel.updateFilters(0, viewModel.filterPrice)
+                            }
+                        }
+                    }
+                    if (viewModel.filterPrice > 0) {
+                        item {
+                            val labels = listOf("", "€ Económico", "€€ Medio", "€€€ Alto")
+                            val label = labels.getOrElse(viewModel.filterPrice) { "" }
+                            ActiveFilterChip(label) {
+                                viewModel.updateFilters(viewModel.filterRating, 0)
+                            }
+                        }
                     }
                 }
             }
@@ -145,7 +155,9 @@ fun RestaurantesScreen(
 
             // --- 3. LISTA DE RESTAURANTES ---
             if (viewModel.isLoading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = navarresRed) }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = navarresRed)
+                }
             } else {
                 // Info de ordenación
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
@@ -158,7 +170,9 @@ fun RestaurantesScreen(
                 }
 
                 if (viewModel.listaVisualizable.isEmpty()) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Sin resultados", color = Color.Gray) }
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Sin resultados", color = Color.Gray)
+                    }
                 }
 
                 LazyColumn(
@@ -169,13 +183,16 @@ fun RestaurantesScreen(
                         val isFav = viewModel.favoritosState[res.nombre] == true
                         val distStr = viewModel.calculateDistanceStr(res.latitud, res.longitud)
 
+                        // CÁLCULO DE HORARIO
+                        val statusCalculado = HorarioHelper.getStatus(res.horarios)
+
                         RestaurantCard(
                             name = res.nombre,
-                            // CORREGIDO: Volvemos a mostrar la categoría
                             category = res.categoria,
                             rating = res.valoracion,
                             distance = distStr,
                             fotoUrl = res.foto,
+                            openStatus = statusCalculado,
                             isFavorite = isFav,
                             onFavoriteClick = { viewModel.toggleFavorite(res) },
                             onClick = { onNavigateToDetail(res.nombre) }
@@ -185,21 +202,30 @@ fun RestaurantesScreen(
             }
         }
 
-        // --- BOTTOM SHEET FILTROS (Sin cambios) ---
+        // --- BOTTOM SHEET FILTROS ---
         if (showFilterSheet) {
             ModalBottomSheet(onDismissRequest = { showFilterSheet = false }, sheetState = sheetState) {
                 FilterSheetContent(
                     currentRating = viewModel.filterRating,
                     currentPrice = viewModel.filterPrice,
-                    onApply = { r, p -> viewModel.updateFilters(r, p); showFilterSheet = false },
-                    onReset = { viewModel.updateFilters(0, 0); showFilterSheet = false }
+                    onApply = { r, p ->
+                        viewModel.updateFilters(r, p)
+                        showFilterSheet = false
+                    },
+                    onReset = {
+                        viewModel.updateFilters(0, 0)
+                        showFilterSheet = false
+                    }
                 )
             }
         }
     }
 }
 
-// ... (Los componentes ActiveFilterChip y FilterSheetContent se mantienen igual) ...
+// --------------------------------------------------------
+// FUNCIONES AUXILIARES (TIENEN QUE ESTAR AQUÍ O EN OTRO ARCHIVO)
+// --------------------------------------------------------
+
 @Composable
 fun ActiveFilterChip(text: String, onDelete: () -> Unit) {
     Surface(
@@ -215,6 +241,7 @@ fun ActiveFilterChip(text: String, onDelete: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterSheetContent(currentRating: Int, currentPrice: Int, onApply: (Int, Int) -> Unit, onReset: () -> Unit) {
     var tempRating by remember { mutableIntStateOf(currentRating) }
