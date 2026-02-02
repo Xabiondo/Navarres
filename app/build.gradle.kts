@@ -76,6 +76,15 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
     implementation("com.google.maps.android:maps-compose:4.4.1")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // 2. GOOGLE MAPS COMPOSE (Para el mapa)
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+
+    // 3. MATERIAL ICONS EXTENDED (CRUCIAL para iconos como ThumbUpOutlined, ChatBubbleOutline)
+    implementation("androidx.compose.material:material-icons-extended:1.6.3")
+
 
 
 }

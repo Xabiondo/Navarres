@@ -1,5 +1,10 @@
 package com.example.navarres.model.data
+
+import com.google.firebase.firestore.DocumentId
+
 data class Restaurant(
+    @DocumentId
+    val id : String = "" ,
     val nombre: String = "",
     val categoria: String = "",     // Ej: "Restaurante", "Asador"
     val modalidad: String = "",

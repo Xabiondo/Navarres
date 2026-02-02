@@ -1,7 +1,7 @@
 package com.example.navarres.viewmodel
 
 import android.net.Uri
-import android.util.Log // Importar Log
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.navarres.model.data.User
@@ -9,7 +9,7 @@ import com.example.navarres.model.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch // IMPORTANTE: Añade este import
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 data class ProfileUiState(
@@ -38,14 +38,10 @@ class ProfileViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             repository.getUserFlow(uid)
-                // --- AQUÍ ESTÁ EL ARREGLO ---
                 .catch { e ->
-                    // Si ocurre un error (ej. PERMISSION_DENIED al cerrar sesión),
-                    // entramos aquí en lugar de cerrar la app.
-                    Log.e("ProfileViewModel", "Error escuchando cambios de usuario (probablemente logout): ${e.message}")
+                    Log.e("ProfileViewModel", "Error escuchando cambios: ${e.message}")
                     _uiState.value = _uiState.value.copy(isLoading = false)
                 }
-                // -----------------------------
                 .collect { updatedUser ->
                     _userProfile.value = updatedUser
                     _uiState.value = _uiState.value.copy(isLoading = false)
@@ -53,7 +49,14 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    // ... Resto de funciones (updateBio, updateCity, onPhotoTaken, logout) iguales ...
+    // --- NUEVA FUNCIÓN PARA ACTUALIZAR NOMBRE ---
+    fun updateDisplayName(newName: String) {
+        val uid = auth.currentUser?.uid ?: return
+        // Actualización optimista local
+        _userProfile.value = _userProfile.value.copy(displayName = newName)
+        viewModelScope.launch { repository.updateUserField(uid, "displayName", newName) }
+    }
+    // --------------------------------------------
 
     fun updateBio(newBio: String) {
         val uid = auth.currentUser?.uid ?: return
@@ -75,7 +78,6 @@ class ProfileViewModel : ViewModel() {
 
     fun onPhotoTaken(uri: Uri) {
         val uid = auth.currentUser?.uid ?: return
-
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
