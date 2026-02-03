@@ -11,6 +11,7 @@ import com.example.navarres.model.data.Restaurant
 import com.example.navarres.model.data.RestaurantStats
 import com.example.navarres.model.repository.CommentRepository
 import com.example.navarres.model.repository.LocationRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -32,19 +33,17 @@ class RestauranteDetailViewModel(application: Application) : AndroidViewModel(ap
     private val defaultLat = 42.8137
     private val defaultLon = -1.6406
 
+    private var statsJob: Job? = null
+
     fun selectRestaurant(restaurant: Restaurant) {
         _selectedRestaurant.value = restaurant
         refreshLocation()
-        calculateStats(restaurant.id)
+        // Nos suscribimos a cambios en tiempo real
+        subscribeToStats(restaurant.id)
     }
 
-    // --- NUEVO: Función pública para forzar la actualización ---
-    fun refreshStats() {
-        val currentId = _selectedRestaurant.value?.id
-        if (currentId != null) {
-            calculateStats(currentId)
-        }
-    }
+    // Ya no hace falta llamar a esto manualmente, es automático
+    fun refreshStats() { }
 
     private fun refreshLocation() {
         viewModelScope.launch {
@@ -55,35 +54,35 @@ class RestauranteDetailViewModel(application: Application) : AndroidViewModel(ap
         }
     }
 
-    private fun calculateStats(restaurantId: String) {
-        viewModelScope.launch {
-            val comments = commentRepo.obtenerComentariosPorRestaurante(restaurantId)
+    private fun subscribeToStats(restaurantId: String) {
+        statsJob?.cancel()
 
-            if (comments.isEmpty()) {
-                _stats.value = RestaurantStats()
-                return@launch
+        statsJob = viewModelScope.launch {
+            // Escuchamos el flujo continuo de comentarios
+            commentRepo.obtenerFlujoComentarios(restaurantId).collect { comments ->
+
+                if (comments.isEmpty()) {
+                    _stats.value = RestaurantStats()
+                } else {
+                    // Filtramos respuestas (parentId == null)
+                    val reviewsReales = comments.filter { it.parentId == null }
+
+                    if (reviewsReales.isEmpty()) {
+                        _stats.value = RestaurantStats()
+                    } else {
+                        val total = reviewsReales.size
+                        val sum = reviewsReales.sumOf { it.rating }
+                        val average = sum.toDouble() / total
+                        val distribution = reviewsReales.groupingBy { it.rating }.eachCount()
+
+                        _stats.value = RestaurantStats(
+                            averageRating = average,
+                            totalReviews = total,
+                            countsPerStar = distribution
+                        )
+                    }
+                }
             }
-
-            // --- CORRECCIÓN CLAVE: FILTRAR SOLO COMENTARIOS PADRE ---
-            // Las respuestas (parentId != null) NO deben contar para la media
-            val reviewsReales = comments.filter { it.parentId == null }
-
-            if (reviewsReales.isEmpty()) {
-                // Si solo hay respuestas pero no reseñas principales (raro, pero posible)
-                _stats.value = RestaurantStats()
-                return@launch
-            }
-
-            val total = reviewsReales.size
-            val sum = reviewsReales.sumOf { it.rating }
-            val average = sum.toDouble() / total
-            val distribution = reviewsReales.groupingBy { it.rating }.eachCount()
-
-            _stats.value = RestaurantStats(
-                averageRating = average,
-                totalReviews = total,
-                countsPerStar = distribution
-            )
         }
     }
 

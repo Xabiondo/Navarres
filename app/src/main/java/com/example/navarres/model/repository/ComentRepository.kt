@@ -6,6 +6,9 @@ import com.google.firebase.Firebase
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class CommentRepository {
@@ -13,22 +16,31 @@ class CommentRepository {
     private val db = Firebase.firestore
     private val collectionRef = db.collection("comentarios")
 
-    // ... (obtenerComentariosPorRestaurante sigue IGUAL) ...
-    suspend fun obtenerComentariosPorRestaurante(restauranteId: String): List<Comentario> {
-        return try {
-            val snapshot = collectionRef
-                .whereEqualTo("restaurantId", restauranteId)
-                .orderBy("date", Query.Direction.DESCENDING)
-                .get()
-                .await()
-            snapshot.toObjects(Comentario::class.java)
-        } catch (e: Exception) {
-            Log.e("CommentRepo", "Error: ${e.message}")
-            emptyList()
-        }
+    /**
+     * FUNCIÓN CLAVE: Devuelve un FLOW (un flujo de datos vivo).
+     * Se ejecuta automáticamente cada vez que alguien escribe en la base de datos.
+     */
+    fun obtenerFlujoComentarios(restauranteId: String): Flow<List<Comentario>> = callbackFlow {
+        val listener = collectionRef
+            .whereEqualTo("restaurantId", restauranteId)
+            .orderBy("date", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("CommentRepo", "Error escuchando cambios: ${error.message}")
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    val lista = snapshot.toObjects(Comentario::class.java)
+                    trySend(lista) // Enviamos la nueva lista a la app
+                }
+            }
+
+        // Se ejecuta cuando cierras la pantalla para limpiar memoria
+        awaitClose { listener.remove() }
     }
 
-    // ... (agregarComentario sigue IGUAL) ...
     suspend fun agregarComentario(comentario: Comentario): Boolean {
         return try {
             collectionRef.add(comentario).await()
@@ -39,16 +51,12 @@ class CommentRepository {
         }
     }
 
-    // --- NUEVO: DAR LIKE ---
     suspend fun toggleLike(comentarioId: String, uid: String, yaDioLike: Boolean) {
         try {
             val docRef = collectionRef.document(comentarioId)
-
             if (yaDioLike) {
-                // Si ya dio like, lo quitamos (Dislike)
                 docRef.update("likedBy", FieldValue.arrayRemove(uid)).await()
             } else {
-                // Si no ha dado like, lo agregamos (Like)
                 docRef.update("likedBy", FieldValue.arrayUnion(uid)).await()
             }
         } catch (e: Exception) {
