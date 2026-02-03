@@ -40,14 +40,19 @@ class CommentRepository {
     }
 
     // --- NUEVO: DAR LIKE ---
-    suspend fun darLike(comentarioId: String) {
+    suspend fun toggleLike(comentarioId: String, uid: String, yaDioLike: Boolean) {
         try {
-            // Incrementa en 1 el campo "likes" directamente en la base de datos
-            collectionRef.document(comentarioId)
-                .update("likes", FieldValue.increment(1))
-                .await()
+            val docRef = collectionRef.document(comentarioId)
+
+            if (yaDioLike) {
+                // Si ya dio like, lo quitamos (Dislike)
+                docRef.update("likedBy", FieldValue.arrayRemove(uid)).await()
+            } else {
+                // Si no ha dado like, lo agregamos (Like)
+                docRef.update("likedBy", FieldValue.arrayUnion(uid)).await()
+            }
         } catch (e: Exception) {
-            Log.e("CommentRepo", "Error dando like: ${e.message}")
+            Log.e("CommentRepo", "Error toggle like: ${e.message}")
         }
     }
 }

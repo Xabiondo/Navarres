@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import com.example.navarres.model.data.RestaurantStats
 import com.example.navarres.viewmodel.ConfigViewModel
 import com.example.navarres.viewmodel.RestauranteDetailViewModel
 import com.google.android.gms.maps.model.CameraPosition
@@ -45,31 +46,29 @@ fun RestauranteDetailScreen(
     onBack: () -> Unit
 ) {
     val restaurant by viewModel.selectedRestaurant.collectAsState()
+    val stats by viewModel.stats.collectAsState()
     val context = LocalContext.current
 
-    // ESTADO: ¿Estamos viendo la lista completa de reseñas?
     var isViewingReviews by remember { mutableStateOf(false) }
 
-    // Interceptamos el botón atrás físico
     BackHandler(enabled = isViewingReviews) {
         isViewingReviews = false
     }
 
-    // Transición profesional entre Info <-> Comentarios
     Crossfade(targetState = isViewingReviews, label = "Transition") { showReviews ->
         if (showReviews) {
             ComentariosView(
-                // --- AÑADE ESTA LÍNEA ---
-                restaurantId = restaurant?.nombre ?: "",
-                // ------------------------
+                restaurantId = restaurant?.id ?: "",
                 restaurantName = restaurant?.nombre ?: "Restaurante",
-                onBack = { isViewingReviews = false }
+                onBack = { isViewingReviews = false },
+                // --- CONECTAMOS LA ACTUALIZACIÓN ---
+                onCommentAdded = { viewModel.refreshStats() }
             )
         } else {
-            // CONTENIDO DEL DETALLE
             restaurant?.let { res ->
                 RestauranteDetailContent(
                     res = res,
+                    stats = stats,
                     viewModel = viewModel,
                     context = context,
                     onBack = onBack,
@@ -80,12 +79,10 @@ fun RestauranteDetailScreen(
     }
 }
 
-// -------------------------------------------------------------------------
-// CONTENIDO PRINCIPAL (INFO + DASHBOARD)
-// -------------------------------------------------------------------------
 @Composable
 fun RestauranteDetailContent(
     res: com.example.navarres.model.data.Restaurant,
+    stats: RestaurantStats,
     viewModel: RestauranteDetailViewModel,
     context: android.content.Context,
     onBack: () -> Unit,
@@ -114,7 +111,6 @@ fun RestauranteDetailContent(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.background)) {
 
-            // 1. HEADER
             Box(modifier = Modifier.fillMaxWidth().height(280.dp)) {
                 AsyncImage(model = res.foto, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)), startY = 300f)))
@@ -127,13 +123,17 @@ fun RestauranteDetailContent(
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
                         Icon(Icons.Rounded.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(text = "${res.valoracion} (120 opiniones)", color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                        Text(
+                            text = String.format("%.1f (%d opiniones)", stats.averageRating, stats.totalReviews),
+                            color = Color.White.copy(alpha = 0.9f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
 
             Column(modifier = Modifier.padding(20.dp)) {
-                // 2. ACCIONES
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     QuickActionButton(Icons.Default.Place, "Ruta") {
                         val uri = Uri.parse("google.navigation:q=${res.latitud},${res.longitud}")
@@ -149,7 +149,6 @@ fun RestauranteDetailContent(
 
                 HorizontalDivider(Modifier.padding(vertical = 24.dp), thickness = 0.5.dp)
 
-                // 3. INFO
                 Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)), shape = RoundedCornerShape(16.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         InfoRow(Icons.Default.LocationOn, "Dirección", res.direccion)
@@ -161,7 +160,6 @@ fun RestauranteDetailContent(
 
                 Spacer(Modifier.height(24.dp))
 
-                // 4. HORARIOS
                 val rotationState by animateFloatAsState(targetValue = if (isHoursExpanded) 180f else 0f, label = "rot")
                 Card(modifier = Modifier.fillMaxWidth().clickable { isHoursExpanded = !isHoursExpanded }, shape = RoundedCornerShape(16.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -189,22 +187,16 @@ fun RestauranteDetailContent(
 
                 Spacer(Modifier.height(32.dp))
 
-                // ---------------------------------------------------------
-                // 5. DASHBOARD PREVIEW (INVITACIÓN A VER MÁS)
-                // ---------------------------------------------------------
                 Text("Opiniones de la comunidad", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(12.dp))
 
                 RatingDashboardCard(
-                    rating = res.valoracion,
-                    totalReviews = 120,
+                    stats = stats,
                     onSeeAllClick = onOpenReviews
                 )
-                // ---------------------------------------------------------
 
                 Spacer(Modifier.height(32.dp))
 
-                // 6. MAPA
                 Text("Ubicación", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(12.dp))
                 Card(modifier = Modifier.fillMaxWidth().height(180.dp).clickable {
@@ -225,12 +217,8 @@ fun RestauranteDetailContent(
     }
 }
 
-// -------------------------------------------------------------------------
-// COMPONENTES DE UI (Dashboard & Botones)
-// -------------------------------------------------------------------------
-
 @Composable
-fun RatingDashboardCard(rating: Double, totalReviews: Int, onSeeAllClick: () -> Unit) {
+fun RatingDashboardCard(stats: RestaurantStats, onSeeAllClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -239,36 +227,37 @@ fun RatingDashboardCard(rating: Double, totalReviews: Int, onSeeAllClick: () -> 
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // NOTA
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(0.4f)) {
                     Text(
-                        text = rating.toString(),
+                        text = String.format("%.1f", stats.averageRating),
                         style = MaterialTheme.typography.displayMedium,
                         fontWeight = FontWeight.Black,
                         color = Color(0xFFB30000)
                     )
                     Row {
                         repeat(5) { i ->
-                            val icon = if (i < rating.toInt()) Icons.Rounded.Star else Icons.Rounded.StarOutline
+                            val icon = if (i < stats.averageRating.toInt()) Icons.Rounded.Star else Icons.Rounded.StarOutline
                             Icon(icon, null, tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
                         }
                     }
                     Spacer(Modifier.height(4.dp))
-                    Text("$totalReviews opiniones", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text("${stats.totalReviews} opiniones", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                 }
 
                 Box(modifier = Modifier.width(1.dp).height(60.dp).background(Color.LightGray.copy(alpha = 0.5f)))
 
-                // BARRAS
                 Column(modifier = Modifier.weight(0.6f).padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    val distribution = listOf(0.7f, 0.2f, 0.05f, 0.02f, 0.03f)
-                    distribution.forEachIndexed { index, progress ->
+                    for (i in 5 downTo 1) {
+                        val count = stats.countsPerStar[i] ?: 0
+                        val totalSafe = if (stats.totalReviews > 0) stats.totalReviews else 1
+                        val progress = count.toFloat() / totalSafe
+
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(8.dp)) {
-                            Text((5 - index).toString(), style = MaterialTheme.typography.labelSmall, color = Color.Gray, fontSize = 10.sp, modifier = Modifier.width(12.dp))
+                            Text(i.toString(), style = MaterialTheme.typography.labelSmall, color = Color.Gray, fontSize = 10.sp, modifier = Modifier.width(12.dp))
                             LinearProgressIndicator(
                                 progress = { progress },
                                 modifier = Modifier.weight(1f).clip(RoundedCornerShape(4.dp)),
-                                color = if(index == 0) Color(0xFFB30000) else Color(0xFFB30000).copy(alpha = 0.5f),
+                                color = if (i == 5) Color(0xFFB30000) else Color(0xFFB30000).copy(alpha = 0.5f),
                                 trackColor = Color.LightGray.copy(alpha = 0.3f),
                             )
                         }
@@ -278,7 +267,6 @@ fun RatingDashboardCard(rating: Double, totalReviews: Int, onSeeAllClick: () -> 
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 0.5.dp)
 
-            // BOTÓN VER MÁS
             Button(
                 onClick = onSeeAllClick,
                 modifier = Modifier.fillMaxWidth(),

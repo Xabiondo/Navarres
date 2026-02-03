@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-// --- CLASE AUXILIAR PARA AGRUPAR (Estilo YouTube) ---
 data class CommentThread(
     val parent: Comentario,
     val replies: List<Comentario>
@@ -23,7 +22,6 @@ class ComentariosViewModel : ViewModel() {
     private val repository = CommentRepository()
     private val auth = FirebaseAuth.getInstance()
 
-    // AHORA LA LISTA ES DE HILOS (Padre + Hijos), NO DE COMENTARIOS SUELTOS
     private val _threads = MutableStateFlow<List<CommentThread>>(emptyList())
     val threads = _threads.asStateFlow()
 
@@ -34,45 +32,33 @@ class ComentariosViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             val listaCruda = repository.obtenerComentariosPorRestaurante(restauranteId)
-
-            // AGRUPAMOS AL ESTILO YOUTUBE
-            val hilos = agruparComentarios(listaCruda)
-
-            _threads.value = hilos
+            _threads.value = agruparComentarios(listaCruda)
             _isLoading.value = false
         }
     }
 
     private fun agruparComentarios(lista: List<Comentario>): List<CommentThread> {
-        // 1. Sacamos los padres (los que no tienen parentId)
-        val padres = lista.filter { it.parentId == null }
-            .sortedByDescending { it.date }
+        val padres = lista.filter { it.parentId == null }.sortedByDescending { it.date }
+        val respuestasMap = lista.filter { it.parentId != null }.groupBy { it.parentId }
 
-        // 2. Sacamos las respuestas y las agrupamos por el ID del padre
-        val respuestasMap = lista.filter { it.parentId != null }
-            .groupBy { it.parentId }
-
-        // 3. Creamos los objetos CommentThread
         return padres.map { padre ->
             val hijos = respuestasMap[padre.id] ?: emptyList()
-            CommentThread(
-                parent = padre,
-                replies = hijos.sortedBy { it.date } // Respuestas en orden cronológico
-            )
+            CommentThread(parent = padre, replies = hijos.sortedBy { it.date })
         }
     }
 
+    // --- CAMBIO AQUÍ: Añadido parámetro onSuccess ---
     fun enviarComentario(
         restauranteId: String,
         textoInput: String,
         valoracionInput: Int,
-        parentId: String? = null
+        parentId: String? = null,
+        onSuccess: () -> Unit = {} // Callback para avisar cuando termine
     ) {
         if (textoInput.isBlank()) return
 
         viewModelScope.launch {
             _isLoading.value = true
-
             val user = auth.currentUser
             val uid = user?.uid ?: "anonimo"
 
@@ -95,46 +81,51 @@ class ComentariosViewModel : ViewModel() {
                 userPhotoUrl = fotoFinal,
                 text = textoInput,
                 rating = valoracionInput,
-                parentId = parentId
+                parentId = parentId,
+                likedBy = emptyList()
             )
 
+            // Esperamos a que el repositorio confirme el guardado
             val exito = repository.agregarComentario(nuevoComentario)
 
             if (exito) {
+                // 1. Recargamos la lista local
                 cargarComentarios(restauranteId)
+                // 2. EJECUTAMOS EL CALLBACK AHORA (y no antes)
+                onSuccess()
             }
             _isLoading.value = false
         }
     }
 
-    fun darLike(comentario: Comentario) {
-        // Actualización optimista: Buscamos el hilo y actualizamos el comentario dentro
-        val listaActual = _threads.value.toMutableList()
+    fun toggleLike(comentario: Comentario) {
+        val uid = auth.currentUser?.uid ?: return
+        val yaDioLike = comentario.likedBy.contains(uid)
+        val nuevaListaLikes = if (yaDioLike) comentario.likedBy - uid else comentario.likedBy + uid
+        val comentarioActualizado = comentario.copy(likedBy = nuevaListaLikes)
 
-        // Buscamos si es un padre
+        val listaActual = _threads.value.toMutableList()
         val indexPadre = listaActual.indexOfFirst { it.parent.id == comentario.id }
+
         if (indexPadre != -1) {
             val hiloAntiguo = listaActual[indexPadre]
-            val padreActualizado = comentario.copy(likes = comentario.likes + 1)
-            listaActual[indexPadre] = hiloAntiguo.copy(parent = padreActualizado)
+            listaActual[indexPadre] = hiloAntiguo.copy(parent = comentarioActualizado)
         } else {
-            // Si no es padre, buscamos en los hijos de todos los hilos
             for (i in listaActual.indices) {
                 val hilo = listaActual[i]
                 val indexHijo = hilo.replies.indexOfFirst { it.id == comentario.id }
                 if (indexHijo != -1) {
                     val hijosMutable = hilo.replies.toMutableList()
-                    hijosMutable[indexHijo] = comentario.copy(likes = comentario.likes + 1)
+                    hijosMutable[indexHijo] = comentarioActualizado
                     listaActual[i] = hilo.copy(replies = hijosMutable)
                     break
                 }
             }
         }
-
         _threads.value = listaActual
 
         viewModelScope.launch {
-            repository.darLike(comentario.id)
+            repository.toggleLike(comentario.id, uid, yaDioLike)
         }
     }
 }
