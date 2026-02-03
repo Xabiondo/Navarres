@@ -10,7 +10,7 @@ val NavarraRedDark = Color(0xFF7F0000)
 // --- MODO CLARO ---
 val LightBackground = Color(0xFFFDFCF0) // Crema suave
 val LightSurface = Color(0xFFFFFFFF)    // Blanco puro
-val PurpleGrey40 = Color(0xFF625b71)    // Añadido para quitar el error
+val PurpleGrey40 = Color(0xFF625b71)
 
 // --- MODO OSCURO PROFESIONAL ---
 val DarkBackground = Color(0xFF121212) // Gris casi negro
