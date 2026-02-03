@@ -18,5 +18,10 @@ data class Comentario(
     val rating: Int = 0,
     val date: Date = Date(),
     val likes: Int = 0,
-    val parentId: String? = null
-)
+    val parentId: String? = null ,
+    val likedBy: List<String> = emptyList(),
+){
+
+    val likesCount: Int
+        get() = likedBy.size
+}

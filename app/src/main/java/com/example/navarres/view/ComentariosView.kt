@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.rounded.Star
@@ -38,6 +39,7 @@ import coil.compose.AsyncImage
 import com.example.navarres.model.data.Comentario
 import com.example.navarres.viewmodel.CommentThread
 import com.example.navarres.viewmodel.ComentariosViewModel
+import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -47,6 +49,7 @@ fun ComentariosView(
     restaurantId: String,
     restaurantName: String,
     onBack: () -> Unit,
+    onCommentAdded: () -> Unit = {},
     viewModel: ComentariosViewModel = viewModel()
 ) {
     val threads by viewModel.threads.collectAsState()
@@ -102,7 +105,7 @@ fun ComentariosView(
                                 commentToReply = parent
                                 showWriteDialog = true
                             },
-                            onLikeClick = { comment -> viewModel.darLike(comment) }
+                            onLikeClick = { comment -> viewModel.toggleLike(comment) }
                         )
                     }
                 }
@@ -115,13 +118,29 @@ fun ComentariosView(
             replyingToName = commentToReply?.userName,
             onDismiss = { showWriteDialog = false },
             onSubmit = { text, rating ->
-                viewModel.enviarComentario(restaurantId, text, rating, commentToReply?.id)
+                // --- AQUÍ ESTÁ EL CAMBIO CLAVE PARA QUE SE ACTUALICE AL MOMENTO ---
+                viewModel.enviarComentario(
+                    restauranteId = restaurantId,
+                    textoInput = text,
+                    valoracionInput = rating,
+                    parentId = commentToReply?.id,
+                    onSuccess = {
+                        // Solo actualizamos la media si NO es una respuesta
+                        if (commentToReply == null) {
+                            onCommentAdded()
+                        }
+                    }
+                )
+
                 showWriteDialog = false
                 commentToReply = null
             }
         )
     }
 }
+
+// ... EL RESTO DEL ARCHIVO (CommentThreadItem, ReviewItemCard, etc) SIGUE IGUAL ...
+// (Lo copio aquí abajo para que puedas copiar todo el archivo de golpe si prefieres)
 
 @Composable
 fun CommentThreadItem(
@@ -132,39 +151,31 @@ fun CommentThreadItem(
     var isExpanded by remember { mutableStateOf(false) }
 
     Column {
-        // 1. COMENTARIO PADRE (Ahora tiene el botón dentro)
         ReviewItemCard(
             comentario = thread.parent,
             isReply = false,
-            replyCount = thread.replies.size, // Pasamos cuántas respuestas tiene
-            isExpanded = isExpanded,          // Pasamos si está abierto
+            replyCount = thread.replies.size,
+            isExpanded = isExpanded,
             onReplyClick = { onReplyClick(thread.parent) },
             onLikeClick = { onLikeClick(thread.parent) },
-            onExpandClick = { isExpanded = !isExpanded } // Acción de desplegar
+            onExpandClick = { isExpanded = !isExpanded }
         )
 
-        // 2. LISTA DE RESPUESTAS (Se despliega debajo)
         AnimatedVisibility(
             visible = isExpanded,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
             Column(modifier = Modifier.padding(start = 16.dp, top = 8.dp)) {
-                // Línea vertical para conectar visualmente
                 Row {
-                    // Línea gris a la izquierda
-                    Box(modifier = Modifier
-                        .width(2.dp)
-                        .fillMaxHeight()
-                        .background(Color.LightGray.copy(alpha = 0.5f)))
-
+                    Box(modifier = Modifier.width(2.dp).fillMaxHeight().background(Color.LightGray.copy(alpha = 0.5f)))
                     Column {
                         thread.replies.forEach { reply ->
                             Spacer(modifier = Modifier.height(8.dp))
                             ReviewItemCard(
                                 comentario = reply,
                                 isReply = true,
-                                onReplyClick = { /* Opcional */ },
+                                onReplyClick = { },
                                 onLikeClick = { onLikeClick(reply) }
                             )
                         }
@@ -179,14 +190,19 @@ fun CommentThreadItem(
 fun ReviewItemCard(
     comentario: Comentario,
     isReply: Boolean,
-    replyCount: Int = 0, // Nuevo: Número de respuestas
-    isExpanded: Boolean = false, // Nuevo: Estado desplegado
+    replyCount: Int = 0,
+    isExpanded: Boolean = false,
     onReplyClick: () -> Unit,
     onLikeClick: () -> Unit,
-    onExpandClick: () -> Unit = {} // Nuevo: Acción al pulsar "Ver respuestas"
+    onExpandClick: () -> Unit = {}
 ) {
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
     val fechaStr = remember(comentario.date) { dateFormat.format(comentario.date) }
+
+    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
+    val isLikedByMe = remember(comentario.likedBy, currentUserId) {
+        comentario.likedBy.contains(currentUserId)
+    }
 
     val bgColor = if (isReply) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
     val cardElevation = if (isReply) 0.dp else 2.dp
@@ -198,7 +214,6 @@ fun ReviewItemCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // --- HEADER ---
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (!comentario.userPhotoUrl.isNullOrBlank()) {
                     AsyncImage(
@@ -228,23 +243,28 @@ fun ReviewItemCard(
             }
 
             Spacer(Modifier.height(8.dp))
-            // --- TEXTO ---
             Text(comentario.text, style = MaterialTheme.typography.bodyMedium, lineHeight = 20.sp)
-
             Spacer(Modifier.height(12.dp))
 
-            // --- FOOTER (BOTONES) ---
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 1. LIKE
-                Row(modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onLikeClick() }.padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.ThumbUp, null, modifier = Modifier.size(16.dp), tint = if(comentario.likes > 0) Color(0xFFB30000) else Color.Gray)
+                Row(
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onLikeClick() }.padding(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (isLikedByMe) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                        contentDescription = "Like",
+                        modifier = Modifier.size(16.dp),
+                        tint = if(isLikedByMe) Color(0xFFB30000) else Color.Gray
+                    )
                     Spacer(Modifier.width(4.dp))
-                    if (comentario.likes > 0) Text("${comentario.likes}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    if (comentario.likesCount > 0) {
+                        Text("${comentario.likesCount}", style = MaterialTheme.typography.labelSmall, color = if(isLikedByMe) Color(0xFFB30000) else Color.Gray)
+                    }
                 }
 
                 Spacer(Modifier.width(16.dp))
 
-                // 2. RESPONDER (Solo en comentarios padre)
                 if (!isReply) {
                     Row(modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onReplyClick() }.padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.AutoMirrored.Filled.Reply, null, modifier = Modifier.size(16.dp), tint = Color.Gray)
@@ -253,29 +273,14 @@ fun ReviewItemCard(
                     }
                 }
 
-                // 3. DESPLEGAR RESPUESTAS (ESTILO YOUTUBE - DENTRO DE LA TARJETA)
                 if (!isReply && replyCount > 0) {
-                    Spacer(Modifier.weight(1f)) // Empujamos a la derecha
-
+                    Spacer(Modifier.weight(1f))
                     Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onExpandClick() }
-                            .padding(4.dp),
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onExpandClick() }.padding(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = if (isExpanded) "Ocultar" else "$replyCount respuestas",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF065FD4), // Azul YouTube
-                            fontWeight = FontWeight.Bold
-                        )
-                        Icon(
-                            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            tint = Color(0xFF065FD4),
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Text(text = if (isExpanded) "Ocultar" else "$replyCount respuestas", style = MaterialTheme.typography.labelSmall, color = Color(0xFF065FD4), fontWeight = FontWeight.Bold)
+                        Icon(imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null, tint = Color(0xFF065FD4), modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -283,7 +288,6 @@ fun ReviewItemCard(
     }
 }
 
-// ... WriteReviewDialog (Igual que antes con BottomSheet) ...
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WriteReviewDialog(
@@ -302,11 +306,7 @@ fun WriteReviewDialog(
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .navigationBarsPadding()
-                .padding(bottom = 20.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (replyingToName != null) {
