@@ -15,5 +15,6 @@ data class Restaurant(
     val telefono: String = "",
     val valoracion: Double = 0.0,
     val horarios: Map<String, String> = emptyMap(),
-    val rutaCarta: String = ""
+    val rutaCarta: String = "",
+    val ownerId: String = ""
 )

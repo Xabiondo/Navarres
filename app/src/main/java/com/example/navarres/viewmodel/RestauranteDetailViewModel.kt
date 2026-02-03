@@ -42,41 +42,54 @@ class RestauranteDetailViewModel(application: Application) : AndroidViewModel(ap
         refreshLocation()
     }
 
+    /**
+     * Comprueba si el usuario actual tiene permisos de edición.
+     * Funciona detectando si el UID del usuario coincide con el 'ownerId' del restaurante.
+     */
     private fun checkOwnership(restaurant: Restaurant) {
         val fbUser = authRepo.getCurrentUser()
         if (fbUser != null) {
             viewModelScope.launch {
+                // Comprobamos si tu UID coincide con el ownerId que pusiste en Firestore
+                val esDuenioPorId = restaurant.ownerId == fbUser.uid
+
+                // Mantenemos tu lógica anterior por seguridad
                 val userData = userRepo.getUser(fbUser.uid)
+                val esDuenioPorPerfil = userData?.ownerOf == restaurant.id
 
-                // LOGS DE PRUEBA: Mira esto en el Logcat de Android Studio
-                Log.d("NAV_DEBUG", "--------------------------------------")
+                val resultadoFinal = (esDuenioPorId || esDuenioPorPerfil) && restaurant.id.isNotEmpty()
+                _isOwner.value = resultadoFinal
+
                 Log.d("NAV_DEBUG", "UID Usuario: ${fbUser.uid}")
-                Log.d("NAV_DEBUG", "Campo 'ownerOf' en Firebase: ${userData?.ownerOf}")
-                Log.d("NAV_DEBUG", "ID del Restaurante actual: ${restaurant.id}")
-
-                // Comparación real
-                val esDueño = userData?.ownerOf == restaurant.id && restaurant.id.isNotEmpty()
-                _isOwner.value = esDueño
-
-                Log.d("NAV_DEBUG", "RESULTADO: ¿Es dueño?: $esDueño")
-                Log.d("NAV_DEBUG", "--------------------------------------")
+                Log.d("NAV_DEBUG", "OwnerId en Restaurante: ${restaurant.ownerId}")
+                Log.d("NAV_DEBUG", "Resultado Final ¿Es dueño?: $resultadoFinal")
             }
         } else {
             _isOwner.value = false
         }
     }
 
+    /**
+     * Sube los cambios a Firestore y actualiza la vista.
+     */
     fun updateRestaurantData(updatedRestaurant: Restaurant, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
+            // Aquí enviamos todos los campos que el dueño puede editar
             val success = restaurantRepo.actualizarDatosRestaurante(
                 restaurantId = updatedRestaurant.id,
                 updates = mapOf(
                     "telefono" to updatedRestaurant.telefono,
                     "precio" to updatedRestaurant.precio,
-                    "horarios" to updatedRestaurant.horarios
+                    "horarios" to updatedRestaurant.horarios,
+                    "direccion" to updatedRestaurant.direccion,
+                    "categoria" to updatedRestaurant.categoria
                 )
             )
-            if (success) _selectedRestaurant.value = updatedRestaurant
+
+            if (success) {
+                // Actualizamos el flujo para que la UI se refresque sola
+                _selectedRestaurant.value = updatedRestaurant
+            }
             onResult(success)
         }
     }

@@ -1,5 +1,4 @@
 package com.example.navarres.view
-
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
@@ -46,6 +45,8 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.zIndex
 
 // Colores Corporativos
 private val NavarresRed = Color(0xFFB30000)
@@ -419,66 +420,70 @@ fun ProfileScreen(
 
 @Composable
 fun ClaimRestaurantDialog(viewModel: ProfileViewModel, onDismiss: () -> Unit) {
-    // Estados del formulario
-    var query by remember { mutableStateOf("") }
-    var selectedRest by remember { mutableStateOf<com.example.navarres.model.data.Restaurant?>(null) }
+    // 1. CAMBIO A rememberSaveable: Si el teclado hace que el diálogo se redibuje,
+    // con 'remember' normal las variables se resetean a "". Con saveable NO.
+    var query by rememberSaveable { mutableStateOf("") }
+    var selectedId by rememberSaveable { mutableStateOf("") }
+    var selectedName by rememberSaveable { mutableStateOf("") }
 
-    // Campos adicionales
-    var cargo by remember { mutableStateOf("") }
-    var telefono by remember { mutableStateOf("") }
-    var cif by remember { mutableStateOf("") }
-    var mensaje by remember { mutableStateOf("") }
-    var aceptaTerminos by remember { mutableStateOf(false) }
+    var cargo by rememberSaveable { mutableStateOf("") }
+    var telefono by rememberSaveable { mutableStateOf("") }
+    var cif by rememberSaveable { mutableStateOf("") }
+    var mensaje by rememberSaveable { mutableStateOf("") }
+    var aceptaTerminos by rememberSaveable { mutableStateOf(false) }
 
     val sugerencias by viewModel.busquedaRestaurantes.collectAsState()
     val context = LocalContext.current
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+
+    // LOG DE CONTROL DE RECOMPOSICIÓN
+    android.util.Log.d("NAV_DEBUG", "--- RECOMPONIENDO DIÁLOGO ---")
+    android.util.Log.d("NAV_DEBUG", "Estado Actual -> ID: '$selectedId', Query: '$query'")
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.95f), // Casi pantalla completa
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f),
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(12.dp)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Header Fijo
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(NavarresRed)
-                        .padding(20.dp)
-                ) {
-                    Text(
-                        "Verificación de Propietario",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                Box(modifier = Modifier.fillMaxWidth().background(NavarresRed).padding(20.dp)) {
+                    Text("Solicitud de Verificación", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
 
-                // Contenido Scrolleable
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(24.dp),
+                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // SECCIÓN 1: EL LOCAL
-                    Text("1. Identificación del Local", fontWeight = FontWeight.Bold, color = NavarresRed)
+                    Text("1. Local a reclamar", fontWeight = FontWeight.Bold, color = NavarresRed)
+
                     OutlinedTextField(
-                        value = if (selectedRest != null) selectedRest!!.nombre else query,
-                        onValueChange = { query = it; selectedRest = null; viewModel.buscarRestaurantes(it) },
-                        label = { Text("Buscar Restaurante...") },
+                        value = if (selectedId.isNotEmpty()) selectedName else query,
+                        onValueChange = {
+                            if (selectedId.isEmpty()) {
+                                query = it
+                                viewModel.buscarRestaurantes(it)
+                            }
+                        },
+                        label = { Text(if (selectedId.isNotEmpty()) "Seleccionado correctamente" else "Nombre del restaurante") },
                         modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Search, null, tint = NavarresRed) },
+                        leadingIcon = { Icon(Icons.Default.Search, null, tint = if (selectedId.isNotEmpty()) Color.Green else NavarresRed) },
+                        trailingIcon = {
+                            if (selectedId.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    android.util.Log.d("NAV_DEBUG", "Borrando selección")
+                                    selectedId = ""; selectedName = ""; query = ""
+                                }) {
+                                    Icon(Icons.Default.Close, null, tint = Color.Red)
+                                }
+                            }
+                        },
+                        readOnly = selectedId.isNotEmpty(),
                         shape = RoundedCornerShape(12.dp)
                     )
 
-                    // Lista de sugerencias (solo si no hay seleccionado)
-                    if (selectedRest == null && query.length >= 2) {
+                    // Resultados de búsqueda
+                    if (selectedId.isEmpty() && query.length >= 2) {
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.4f)),
                             modifier = Modifier.heightIn(max = 200.dp)
@@ -487,8 +492,14 @@ fun ClaimRestaurantDialog(viewModel: ProfileViewModel, onDismiss: () -> Unit) {
                                 sugerencias.forEach { rest ->
                                     ListItem(
                                         headlineContent = { Text(rest.nombre) },
-                                        supportingContent = { Text(rest.localidad) },
-                                        modifier = Modifier.clickable { selectedRest = rest; query = rest.nombre }
+                                        supportingContent = { Text("${rest.localidad}") },
+                                        modifier = Modifier.clickable {
+                                            // LOG AL PULSAR
+                                            android.util.Log.d("NAV_DEBUG", "¡CLICK! Seleccionando: ${rest.nombre} con ID: ${rest.id}")
+                                            selectedId = rest.id
+                                            selectedName = rest.nombre
+                                            focusManager.clearFocus() // Cerramos teclado para evitar recomposiciones raras
+                                        }
                                     )
                                     HorizontalDivider(color = Color.LightGray.copy(0.3f))
                                 }
@@ -496,98 +507,58 @@ fun ClaimRestaurantDialog(viewModel: ProfileViewModel, onDismiss: () -> Unit) {
                         }
                     }
 
-                    // SECCIÓN 2: INFORMACIÓN PERSONAL
-                    Text("2. Información del Solicitante", fontWeight = FontWeight.Bold, color = NavarresRed)
+                    Text("2. Información profesional", fontWeight = FontWeight.Bold, color = NavarresRed)
+                    OutlinedTextField(value = cargo, onValueChange = { cargo = it }, label = { Text("Tu cargo") }, modifier = Modifier.fillMaxWidth())
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = cargo,
-                            onValueChange = { cargo = it },
-                            label = { Text("Cargo (Ej: Gerente)") },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        OutlinedTextField(
-                            value = cif,
-                            onValueChange = { cif = it },
-                            label = { Text("CIF / NIF") },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
+                        OutlinedTextField(value = cif, onValueChange = { cif = it }, label = { Text("CIF / NIF") }, modifier = Modifier.weight(1f))
+                        OutlinedTextField(value = telefono, onValueChange = { telefono = it }, label = { Text("Teléfono") }, modifier = Modifier.weight(1f))
                     }
 
-                    OutlinedTextField(
-                        value = telefono,
-                        onValueChange = { telefono = it },
-                        label = { Text("Teléfono de contacto directo") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone)
-                    )
-
-                    // SECCIÓN 3: JUSTIFICACIÓN
-                    Text("3. Detalles de la reclamación", fontWeight = FontWeight.Bold, color = NavarresRed)
-                    OutlinedTextField(
-                        value = mensaje,
-                        onValueChange = { mensaje = it },
-                        label = { Text("¿Por qué reclamas este local?") },
-                        placeholder = { Text("Ej: Soy el dueño legal desde 2015...") },
-                        modifier = Modifier.fillMaxWidth().height(120.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    // Aviso legal
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = aceptaTerminos, onCheckedChange = { aceptaTerminos = it })
-                        Text(
-                            "Certifico que la información es verídica y soy representante legal del negocio.",
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
+                        Text("Certifico que soy el representante legal.", style = MaterialTheme.typography.labelSmall)
                     }
                 }
 
-                // Footer con botones
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
-                        Text("CANCELAR", color = Color.Gray)
-                    }
+                Row(modifier = Modifier.padding(24.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("CANCELAR") }
                     Button(
                         onClick = {
-                            val datos = mapOf(
-                                "cargo" to cargo,
-                                "cif" to cif,
-                                "telefono" to telefono,
-                                "mensaje" to mensaje
-                            )
-                            viewModel.enviarSolicitudExtensa(selectedRest!!.id, selectedRest!!.nombre, datos) { success ->
-                                if (success) {
-                                    Toast.makeText(context, "Solicitud en revisión técnica", Toast.LENGTH_LONG).show()
-                                    onDismiss()
+                            // LOG CRÍTICO ANTES DE ENVIAR
+                            android.util.Log.d("NAV_DEBUG", "BOTÓN ENVIAR PULSADO")
+                            android.util.Log.d("NAV_DEBUG", "Datos a enviar -> ID: '$selectedId', Nombre: '$selectedName', CIF: '$cif'")
+
+                            if (selectedId.isNotEmpty()) {
+                                viewModel.enviarSolicitudDossierEmail(
+                                    restId = selectedId,
+                                    restNombre = selectedName,
+                                    datosFormulario = mapOf("cargo" to cargo, "cif" to cif, "telefono" to telefono)
+                                ) { success ->
+                                    android.util.Log.d("NAV_DEBUG", "Resultado servidor: $success")
+                                    if (success) {
+                                        Toast.makeText(context, "Enviado con éxito", Toast.LENGTH_LONG).show()
+                                        onDismiss()
+                                    } else {
+                                        Toast.makeText(context, "Error en el servidor / Firestore", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
+                            } else {
+                                android.util.Log.e("NAV_DEBUG", "ERROR: selectedId estaba VACÍO al dar al botón")
+                                Toast.makeText(context, "Por favor, selecciona un restaurante de la lista", Toast.LENGTH_SHORT).show()
                             }
                         },
-                        enabled = selectedRest != null && cargo.isNotBlank() && cif.isNotBlank() && aceptaTerminos,
+                        enabled = (selectedId.isNotEmpty() || query.isNotEmpty()) && cif.isNotBlank() && aceptaTerminos,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = NavarresRed),
-                        shape = RoundedCornerShape(12.dp)
+                        colors = ButtonDefaults.buttonColors(containerColor = NavarresRed)
                     ) {
-                        Text("ENVIAR DOSSIER")
+                        Text("ENVIAR")
                     }
                 }
             }
         }
     }
 }
-
 @Composable
 fun ProfileStatItem(number: String, label: String, icon: ImageVector) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {

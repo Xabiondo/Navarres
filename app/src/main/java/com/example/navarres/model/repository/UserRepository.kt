@@ -1,6 +1,7 @@
 package com.example.navarres.model.repository
 
 import android.net.Uri
+import android.util.Log
 import com.example.navarres.model.data.OwnerRequest
 import com.example.navarres.model.data.User
 import com.google.firebase.firestore.FieldValue
@@ -152,13 +153,16 @@ class UserRepository {
         }
     }
 
+    // En UserRepository.kt
     suspend fun enviarSolicitudGenerica(datos: Map<String, Any>): Boolean {
         return try {
-            db.collection("solicitudes_dueno")
+            // CAMBIAMOS EL NOMBRE AQUÍ PARA QUE COINCIDA CON LA EXTENSIÓN
+            db.collection("solicitudes_verificacion")
                 .add(datos)
                 .await()
             true
         } catch (e: Exception) {
+            Log.e("UserRepository", "Error al enviar: ${e.message}")
             false
         }
     }
