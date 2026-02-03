@@ -59,9 +59,7 @@ fun RestauranteDetailScreen(
     Crossfade(targetState = isViewingReviews, label = "Transition") { showReviews ->
         if (showReviews) {
             ComentariosView(
-                // --- AÑADE ESTA LÍNEA ---
                 restaurantId = restaurant?.nombre ?: "",
-                // ------------------------
                 restaurantName = restaurant?.nombre ?: "Restaurante",
                 onBack = { isViewingReviews = false }
             )
@@ -96,15 +94,32 @@ fun RestauranteDetailContent(
     val diasOrdenados = listOf("lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo")
 
     val posRestaurante = LatLng(res.latitud, res.longitud)
+
+    // Configuración inicial de la cámara
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(posRestaurante, 17f)
     }
 
+    // 🔥 FIX IMPORTANTE: Esto obliga al mapa a moverse si cambias de restaurante 🔥
+    LaunchedEffect(res) {
+        cameraPositionState.position = CameraPosition.fromLatLngZoom(posRestaurante, 17f)
+    }
+
+    // DIÁLOGO DE LA CARTA (ZOOM)
     if (showCarta && !res.rutaCarta.isNullOrBlank()) {
         Dialog(onDismissRequest = { showCarta = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                AsyncImage(model = res.rutaCarta, contentDescription = "Carta", modifier = Modifier.fillMaxSize().clickable { showCarta = false }, contentScale = ContentScale.Fit)
-                FilledIconButton(onClick = { showCarta = false }, modifier = Modifier.align(Alignment.TopEnd).padding(20.dp), colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.White.copy(alpha = 0.3f))) {
+                AsyncImage(
+                    model = res.rutaCarta,
+                    contentDescription = "Carta",
+                    modifier = Modifier.fillMaxSize().clickable { showCarta = false },
+                    contentScale = ContentScale.Fit
+                )
+                FilledIconButton(
+                    onClick = { showCarta = false },
+                    modifier = Modifier.align(Alignment.TopEnd).padding(20.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.White.copy(alpha = 0.3f))
+                ) {
                     Icon(Icons.Default.Close, null, tint = Color.White)
                 }
             }
@@ -114,7 +129,7 @@ fun RestauranteDetailContent(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.background)) {
 
-            // 1. HEADER
+            // 1. HEADER (FOTO PRINCIPAL)
             Box(modifier = Modifier.fillMaxWidth().height(280.dp)) {
                 AsyncImage(model = res.foto, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)), startY = 300f)))
@@ -133,17 +148,49 @@ fun RestauranteDetailContent(
             }
 
             Column(modifier = Modifier.padding(20.dp)) {
-                // 2. ACCIONES
+
+                // 2. ACCIONES (BOTONES)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    // Botón RUTA
                     QuickActionButton(Icons.Default.Place, "Ruta") {
                         val uri = Uri.parse("google.navigation:q=${res.latitud},${res.longitud}")
-                        context.startActivity(Intent(Intent.ACTION_VIEW, uri).apply { setPackage("com.google.android.apps.maps") })
+                        val intent = Intent(Intent.ACTION_VIEW, uri)
+                        intent.setPackage("com.google.android.apps.maps")
+                        if (intent.resolveActivity(context.packageManager) != null) {
+                            context.startActivity(intent)
+                        } else {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        }
                     }
+
+                    // Botón LLAMAR
                     QuickActionButton(Icons.Default.Phone, "Llamar") {
                         context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${res.telefono}")))
                     }
+
+                    // Botón CARTA
                     QuickActionButton(Icons.Default.MenuBook, "Carta") {
                         if (!res.rutaCarta.isNullOrBlank()) showCarta = true else Toast.makeText(context, "No hay carta disponible", Toast.LENGTH_SHORT).show()
+                    }
+
+                    // Botón COMPARTIR
+                    QuickActionButton(Icons.Default.Share, "Share") {
+                        // Usamos un enlace estándar de Google Maps
+                        val shareText = """
+                            🍽️ *${res.nombre}*
+                            📍 ${res.direccion}
+                            
+                            ¡Mira este sitio en Navarres! 👇
+                            https://maps.google.com/?q=${res.latitud},${res.longitud}
+                        """.trimIndent()
+
+                        val sendIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                            type = "text/plain"
+                        }
+                        val shareIntent = Intent.createChooser(sendIntent, "Compartir restaurante en...")
+                        context.startActivity(shareIntent)
                     }
                 }
 
@@ -189,9 +236,7 @@ fun RestauranteDetailContent(
 
                 Spacer(Modifier.height(32.dp))
 
-                // ---------------------------------------------------------
-                // 5. DASHBOARD PREVIEW (INVITACIÓN A VER MÁS)
-                // ---------------------------------------------------------
+                // 5. DASHBOARD PREVIEW
                 Text("Opiniones de la comunidad", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(12.dp))
 
@@ -200,18 +245,27 @@ fun RestauranteDetailContent(
                     totalReviews = 120,
                     onSeeAllClick = onOpenReviews
                 )
-                // ---------------------------------------------------------
 
                 Spacer(Modifier.height(32.dp))
 
                 // 6. MAPA
                 Text("Ubicación", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(12.dp))
-                Card(modifier = Modifier.fillMaxWidth().height(180.dp).clickable {
-                    val uri = Uri.parse("google.navigation:q=${res.latitud},${res.longitud}")
-                    context.startActivity(Intent(Intent.ACTION_VIEW, uri).apply { setPackage("com.google.android.apps.maps") })
-                }, shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(2.dp)) {
-                    GoogleMap(modifier = Modifier.fillMaxSize(), cameraPositionState = cameraPositionState, uiSettings = MapUiSettings(zoomControlsEnabled = false, scrollGesturesEnabled = false, zoomGesturesEnabled = false)) {
+
+                Card(
+                    modifier = Modifier.fillMaxWidth().height(180.dp).clickable {
+                        val uri = Uri.parse("google.navigation:q=${res.latitud},${res.longitud}")
+                        context.startActivity(Intent(Intent.ACTION_VIEW, uri).apply { setPackage("com.google.android.apps.maps") })
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    // El mapa ahora sí reaccionará al LaunchedEffect de arriba
+                    GoogleMap(
+                        modifier = Modifier.fillMaxSize(),
+                        cameraPositionState = cameraPositionState,
+                        uiSettings = MapUiSettings(zoomControlsEnabled = false, scrollGesturesEnabled = false, zoomGesturesEnabled = false)
+                    ) {
                         Marker(state = MarkerState(position = posRestaurante), title = res.nombre)
                     }
                 }
@@ -226,7 +280,7 @@ fun RestauranteDetailContent(
 }
 
 // -------------------------------------------------------------------------
-// COMPONENTES DE UI (Dashboard & Botones)
+// COMPONENTES DE UI AUXILIARES
 // -------------------------------------------------------------------------
 
 @Composable
@@ -239,14 +293,8 @@ fun RatingDashboardCard(rating: Double, totalReviews: Int, onSeeAllClick: () -> 
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // NOTA
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(0.4f)) {
-                    Text(
-                        text = rating.toString(),
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Black,
-                        color = Color(0xFFB30000)
-                    )
+                    Text(text = rating.toString(), style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Black, color = Color(0xFFB30000))
                     Row {
                         repeat(5) { i ->
                             val icon = if (i < rating.toInt()) Icons.Rounded.Star else Icons.Rounded.StarOutline
@@ -256,35 +304,19 @@ fun RatingDashboardCard(rating: Double, totalReviews: Int, onSeeAllClick: () -> 
                     Spacer(Modifier.height(4.dp))
                     Text("$totalReviews opiniones", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                 }
-
                 Box(modifier = Modifier.width(1.dp).height(60.dp).background(Color.LightGray.copy(alpha = 0.5f)))
-
-                // BARRAS
                 Column(modifier = Modifier.weight(0.6f).padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     val distribution = listOf(0.7f, 0.2f, 0.05f, 0.02f, 0.03f)
                     distribution.forEachIndexed { index, progress ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(8.dp)) {
                             Text((5 - index).toString(), style = MaterialTheme.typography.labelSmall, color = Color.Gray, fontSize = 10.sp, modifier = Modifier.width(12.dp))
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier.weight(1f).clip(RoundedCornerShape(4.dp)),
-                                color = if(index == 0) Color(0xFFB30000) else Color(0xFFB30000).copy(alpha = 0.5f),
-                                trackColor = Color.LightGray.copy(alpha = 0.3f),
-                            )
+                            LinearProgressIndicator(progress = { progress }, modifier = Modifier.weight(1f).clip(RoundedCornerShape(4.dp)), color = if(index == 0) Color(0xFFB30000) else Color(0xFFB30000).copy(alpha = 0.5f), trackColor = Color.LightGray.copy(alpha = 0.3f))
                         }
                     }
                 }
             }
-
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 0.5.dp)
-
-            // BOTÓN VER MÁS
-            Button(
-                onClick = onSeeAllClick,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                shape = RoundedCornerShape(12.dp)
-            ) {
+            Button(onClick = onSeeAllClick, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(12.dp)) {
                 Text("Leer todas las reseñas", color = Color(0xFFB30000), fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(8.dp))
                 Icon(Icons.Default.ArrowForward, null, tint = Color(0xFFB30000), modifier = Modifier.size(16.dp))
