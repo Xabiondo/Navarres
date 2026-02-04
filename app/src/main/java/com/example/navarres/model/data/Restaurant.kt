@@ -4,9 +4,10 @@ import com.google.firebase.firestore.DocumentId
 
 data class Restaurant(
     @DocumentId
-    val id : String = "" ,
+    val id: String = "", // La anotación @DocumentId rellena esto automático
+    //La anotación funciona para poder relacionar automáticamente los restaurantes con los comentarios
     val nombre: String = "",
-    val categoria: String = "",     // Ej: "Restaurante", "Asador"
+    val categoria: String = "",
     val modalidad: String = "",
     val direccion: String = "",
     val localidad: String = "",
@@ -19,5 +20,6 @@ data class Restaurant(
     val telefono: String = "",
     val valoracion: Double = 0.0,
     val horarios: Map<String, String> = emptyMap(),
-    val rutaCarta: String = ""
+    val rutaCarta: String = "",
+    val ownerId: String = "" // Importante para la función de reclamar negocio
 )

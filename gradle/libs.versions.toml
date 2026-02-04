@@ -15,6 +15,8 @@
     foundation = "1.10.1"
     ui = "1.10.1"
     playServicesLocation = "21.3.0"
+    uiVersion = "1.10.2"
+    uiText = "1.10.2"
 
     [libraries]
     androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -42,6 +44,8 @@
     androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
     androidx-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
     play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+    ui = { group = "androidx.compose.ui", name = "ui", version.ref = "uiVersion" }
+    androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
 
 
 

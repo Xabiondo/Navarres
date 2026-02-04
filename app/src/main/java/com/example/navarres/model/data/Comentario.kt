@@ -7,12 +7,12 @@ data class Comentario(
     @DocumentId
     val id: String = "",
 
-    val restaurantId: String = "", // Se vinculará con Restaurant.id
-    val userId: String = "",       // Se vinculará con User.uid
+    val restaurantId: String = "",
+    val userId: String = "",
 
 
-    val userName: String = "",     // Se rellena con User.displayName
-    val userPhotoUrl: String? = null, // Se rellena con User.photoUrl
+    val userName: String = "",
+    val userPhotoUrl: String? = null,
 
     val text: String = "",
     val rating: Int = 0,

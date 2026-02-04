@@ -35,13 +35,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.example.navarres.viewmodel.ProfileViewModel
+import com.example.navarres.model.data.Restaurant
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 
 private val NavarresRed = Color(0xFFB30000)
 private val NavarresDarkRed = Color(0xFF800000)
@@ -75,8 +83,9 @@ fun ProfileScreen(
     // Estados para diálogos
     var showEditBioDialog by remember { mutableStateOf(false) }
     var showEditCityDialog by remember { mutableStateOf(false) }
-    var showEditNameDialog by remember { mutableStateOf(false) } // <--- NUEVO
+    var showEditNameDialog by remember { mutableStateOf(false) } // Recuperado del MERGE
     var showPhotoSourceDialog by remember { mutableStateOf(false) }
+    var showClaimDialog by remember { mutableStateOf(false) } // De IVAN
 
     val context = LocalContext.current
     var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
@@ -117,8 +126,21 @@ fun ProfileScreen(
                         Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp))
                     }
                 }
-                if (uiState.isLoading) CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = NavarresRed)
-                SmallFloatingActionButton(onClick = { if (!uiState.isLoading) showPhotoSourceDialog = true }, containerColor = NavarresGreen, contentColor = Color.White, modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-4).dp, y = (-4).dp), shape = CircleShape) {
+
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = NavarresRed)
+                }
+
+                // BOTÓN DE CAMBIO DE FOTO (Estilo mejorado de IVAN)
+                SmallFloatingActionButton(
+                    onClick = {
+                        if (!uiState.isLoading) showPhotoSourceDialog = true
+                    },
+                    containerColor = NavarresGreen,
+                    contentColor = Color.White,
+                    modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-4).dp, y = (-4).dp),
+                    shape = CircleShape
+                ) {
                     Icon(Icons.Default.CameraAlt, "Editar foto", modifier = Modifier.size(18.dp))
                 }
             }
@@ -129,7 +151,6 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // LÓGICA PARA MOSTRAR NOMBRE O EMAIL SI ESTÁ VACÍO
             val displayName = if (userProfile.displayName.isNotBlank()) {
                 userProfile.displayName
             } else if (userProfile.email.contains("@")) {
@@ -181,7 +202,30 @@ fun ProfileScreen(
 
         // AJUSTES
         ProfileSectionCard(title = "Ajustes de Cuenta", showEdit = false) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+
+            // BOTÓN PARA RECLAMAR DUEÑO (De IVAN)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showClaimDialog = true }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Verified, null, tint = NavarresGreen, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text("¿Eres dueño de un negocio?", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text("Haz clic aquí para reclamar tu local", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Email, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(12.dp))
@@ -222,23 +266,314 @@ fun ProfileScreen(
     }
 
     // --- DIÁLOGOS ---
-    if (showEditBioDialog) EditDialog("Editar biografía", userProfile.bio, { showEditBioDialog = false }, { viewModel.updateBio(it); showEditBioDialog = false })
-    if (showEditCityDialog) EditDialog("Editar ciudad", userProfile.city, { showEditCityDialog = false }, { viewModel.updateCity(it); showEditCityDialog = false })
+    if (showEditBioDialog) {
+        EditDialog("Editar biografía", userProfile.bio, { showEditBioDialog = false }, { viewModel.updateBio(it); showEditBioDialog = false })
+    }
 
-    // DIÁLOGO EDITAR NOMBRE (NUEVO)
+    if (showEditCityDialog) {
+        EditDialog("Editar ciudad", userProfile.city, { showEditCityDialog = false }, { viewModel.updateCity(it); showEditCityDialog = false })
+    }
+
+    // DIÁLOGO EDITAR NOMBRE (Recuperado del MERGE)
     if (showEditNameDialog) {
         EditDialog("Editar nombre de usuario", userProfile.displayName, { showEditNameDialog = false }, { viewModel.updateDisplayName(it); showEditNameDialog = false })
     }
 
+    // NUEVO: Diálogo de Reclamación (De IVAN)
+    if (showClaimDialog) {
+        ClaimRestaurantDialog(viewModel = viewModel, onDismiss = { showClaimDialog = false })
+    }
+
+    // NUEVO: Diálogo de Foto mejorado (De IVAN)
     if (showPhotoSourceDialog) {
-        AlertDialog(onDismissRequest = { showPhotoSourceDialog = false }, title = { Text("Cambiar foto") }, text = { Column {
-            Row(modifier = Modifier.fillMaxWidth().clickable { showPhotoSourceDialog = false; launchCamera() }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.PhotoCamera, null, tint = NavarresRed); Spacer(modifier = Modifier.width(12.dp)); Text("Hacer una foto") }
-            Row(modifier = Modifier.fillMaxWidth().clickable { showPhotoSourceDialog = false; galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.PhotoLibrary, null, tint = NavarresRed); Spacer(modifier = Modifier.width(12.dp)); Text("Elegir de la galería") }
-        }}, confirmButton = {}, dismissButton = { TextButton(onClick = { showPhotoSourceDialog = false }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }, containerColor = MaterialTheme.colorScheme.surfaceContainer)
+        AlertDialog(
+            onDismissRequest = { showPhotoSourceDialog = false },
+            title = { Text("Cambiar foto de perfil") },
+            text = {
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showPhotoSourceDialog = false
+                                launchCamera()
+                            }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, null, tint = NavarresRed)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Hacer una foto")
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showPhotoSourceDialog = false
+                                galleryLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, null, tint = NavarresRed)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Elegir de la galería")
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showPhotoSourceDialog = false }) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
     }
 }
 
-// ... ProfileStatItem, ProfileSectionCard, EditDialog (se mantienen igual que antes) ...
+// --- COMPONENTES AUXILIARES ---
+
+@Composable
+fun ClaimRestaurantDialog(viewModel: ProfileViewModel, onDismiss: () -> Unit) {
+    var query by rememberSaveable { mutableStateOf("") }
+    var selectedId by rememberSaveable { mutableStateOf("") }
+    var selectedName by rememberSaveable { mutableStateOf("") }
+    var selectedLocation by rememberSaveable { mutableStateOf("") }
+
+    var cargo by rememberSaveable { mutableStateOf("") }
+    var telefono by rememberSaveable { mutableStateOf("") }
+    var cif by rememberSaveable { mutableStateOf("") }
+    var aceptaTerminos by rememberSaveable { mutableStateOf(false) }
+
+    val sugerencias by viewModel.busquedaRestaurantes.collectAsState()
+    val context = LocalContext.current
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .fillMaxHeight(0.85f),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Cabecera elegante
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.horizontalGradient(listOf(NavarresRed, Color(0xFFB71C1C)))
+                        )
+                        .padding(vertical = 24.dp, horizontal = 20.dp)
+                ) {
+                    Column {
+                        Text(
+                            "Verificación de Negocio",
+                            color = Color.White,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Sigue los pasos para tomar el control de tu local",
+                            color = Color.White.copy(alpha = 0.8f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    // PASO 1
+                    StepHeader(number = "1", title = "Selecciona tu establecimiento")
+
+                    if (selectedId.isEmpty()) {
+                        OutlinedTextField(
+                            value = query,
+                            onValueChange = {
+                                query = it
+                                viewModel.buscarRestaurantes(it)
+                            },
+                            placeholder = { Text("Escribe el nombre...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = { Icon(Icons.Default.Storefront, null, tint = NavarresRed) },
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+
+                        if (query.length >= 2) {
+                            Surface(
+                                modifier = Modifier.heightIn(max = 200.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, Color.LightGray.copy(0.5f)),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            ) {
+                                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                                    items(sugerencias) { rest ->
+                                        ListItem(
+                                            headlineContent = { Text(rest.nombre, fontWeight = FontWeight.Medium) },
+                                            supportingContent = { Text(rest.localidad, style = MaterialTheme.typography.bodySmall) },
+                                            leadingContent = { Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(18.dp)) },
+                                            modifier = Modifier.clickable {
+                                                selectedId = rest.id
+                                                selectedName = rest.nombre
+                                                selectedLocation = rest.localidad
+                                                focusManager.clearFocus()
+                                            },
+                                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                                        )
+                                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.LightGray.copy(0.2f))
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Tarjeta de restaurante seleccionado
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                            border = BorderStroke(1.dp, Color(0xFF2E7D32)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.CheckCircle, "Ok", tint = Color(0xFF2E7D32))
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(selectedName, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
+                                    Text(selectedLocation, style = MaterialTheme.typography.bodySmall, color = Color(0xFF1B5E20))
+                                }
+                                IconButton(onClick = { selectedId = ""; selectedName = "" }) {
+                                    Icon(Icons.Default.Edit, "Cambiar", tint = Color(0xFF2E7D32))
+                                }
+                            }
+                        }
+                    }
+
+                    // PASO 2
+                    StepHeader(number = "2", title = "Información de contacto")
+
+                    OutlinedTextField(
+                        value = cargo,
+                        onValueChange = { cargo = it },
+                        label = { Text("Cargo (Ej: Gerente, Dueño)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = cif,
+                            onValueChange = { cif = it.uppercase() },
+                            label = { Text("CIF / NIF") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = telefono,
+                            onValueChange = { if (it.length <= 15) telefono = it },
+                            label = { Text("Teléfono") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            singleLine = true
+                        )
+                    }
+
+                    Surface(
+                        color = NavarresRed.copy(alpha = 0.05f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = aceptaTerminos,
+                                onCheckedChange = { aceptaTerminos = it },
+                                colors = CheckboxDefaults.colors(checkedColor = NavarresRed)
+                            )
+                            Text(
+                                "Certifico que tengo autoridad legal sobre este negocio y acepto los términos.",
+                                style = MaterialTheme.typography.labelSmall,
+                                lineHeight = 14.sp
+                            )
+                        }
+                    }
+                }
+
+                // Botones inferiores
+                Row(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("CANCELAR", color = Color.Gray)
+                    }
+                    Button(
+                        onClick = {
+                            viewModel.enviarSolicitudDossierEmail(
+                                restId = selectedId,
+                                restNombre = selectedName,
+                                datosFormulario = mapOf("cargo" to cargo, "cif" to cif, "telefono" to telefono)
+                            ) { success ->
+                                if (success) {
+                                    Toast.makeText(context, "✅ Solicitud enviada", Toast.LENGTH_LONG).show()
+                                    onDismiss()
+                                } else {
+                                    Toast.makeText(context, "❌ Error al enviar", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        enabled = selectedId.isNotEmpty() && cif.length > 5 && cargo.isNotBlank() && aceptaTerminos,
+                        modifier = Modifier.weight(1.5f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NavarresRed)
+                    ) {
+                        Text("ENVIAR SOLICITUD", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StepHeader(number: String, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            color = NavarresRed,
+            shape = CircleShape,
+            modifier = Modifier.size(24.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(number, color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    }
+}
+
 @Composable
 fun ProfileStatItem(number: String, label: String, icon: ImageVector) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {

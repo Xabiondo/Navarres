@@ -32,13 +32,17 @@ class ComentariosViewModel : ViewModel() {
     private var listeningJob: Job? = null
 
     fun cargarComentarios(restauranteId: String) {
-        listeningJob?.cancel() // Cancelamos escuchas anteriores
+        listeningJob?.cancel()
+        //Cancela toodos los hilos en segundo plano, antes de comenzar con los nuevos
 
         listeningJob = viewModelScope.launch {
+
+            //viewmodelScope sirve para llamar funciones en un segundo hilo, sin bloquear el anterior
             _isLoading.value = true
-            // NOS SUSCRIBIMOS AL FLUJO EN TIEMPO REAL
+
             repository.obtenerFlujoComentarios(restauranteId).collect { listaCruda ->
                 _threads.value = agruparComentarios(listaCruda)
+                //Aqui llamamos a esta función , para agrupar los comentarios.
                 _isLoading.value = false
             }
         }
@@ -52,6 +56,7 @@ class ComentariosViewModel : ViewModel() {
             val hijos = respuestasMap[padre.id] ?: emptyList()
             CommentThread(parent = padre, replies = hijos.sortedBy { it.date })
         }
+        //Filtra en función de si son comentarios padres o hijos.
     }
 
     fun enviarComentario(
@@ -64,8 +69,7 @@ class ComentariosViewModel : ViewModel() {
         if (textoInput.isBlank()) return
 
         viewModelScope.launch {
-            // No necesitamos activar isLoading manual aquí porque el listener
-            // de arriba detectará el nuevo comentario y actualizará la UI solo.
+
             val user = auth.currentUser
             val uid = user?.uid ?: "anonimo"
             var nombreFinal = user?.displayName ?: "Usuario"
@@ -99,7 +103,6 @@ class ComentariosViewModel : ViewModel() {
         val uid = auth.currentUser?.uid ?: return
         val yaDioLike = comentario.likedBy.contains(uid)
 
-        // Optimistic update para que se vea instantáneo
         val nuevaListaLikes = if (yaDioLike) comentario.likedBy - uid else comentario.likedBy + uid
         val comentarioActualizado = comentario.copy(likedBy = nuevaListaLikes)
         actualizarLocalmente(comentarioActualizado)

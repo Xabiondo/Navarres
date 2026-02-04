@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">Navarres</string>
+    <string name="perfil_titulo">Perfil de Usuario</string>
+    <string name="btn_idioma_es">Español</string>
+    <string name="btn_idioma_en">Inglés</string>
+    <string name="btn_idioma_eu">Euskera</string>
+    <string name="cerrar_sesion">Cerrar Sesión</string>
 </resources>
