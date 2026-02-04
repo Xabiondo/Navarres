@@ -169,71 +169,72 @@ class ProfileViewModel : ViewModel() {
     ) {
         val user = _userProfile.value
 
-        // 1. BLINDAJE DE SEGURIDAD: Si falta el ID del restaurante o el usuario, abortamos.
-        if (restId.isBlank()) {
-            Log.e("NAV_ERROR", "Error: El ID del restaurante llegó vacío al ViewModel")
+        if (restId.isBlank() || user.uid.isEmpty()) {
+            Log.e("NAV_ERROR", "Datos insuficientes: restId=$restId, userUid=${user.uid}")
             onResult(false)
             return
         }
-
-        if (user == null || user.uid.isEmpty()) {
-            Log.e("NAV_ERROR", "Error: Usuario no identificado")
-            onResult(false)
-            return
-        }
-
-        val functionUrl = "https://us-central1-navarres-8d2e3.cloudfunctions.net/aprobarDuenio"
-
-        // 2. CONSTRUCCIÓN LIMPIA: Usamos variables intermedias para evitar errores de símbolos
-        val userUid = user.uid
-        val userEmail = user.email
-
-        val approvalLink = "${functionUrl}?uid=${userUid}&restId=${restId}&restNombre=${restNombre}&email=${userEmail}"
 
         viewModelScope.launch {
             try {
-                val solicitudData = hashMapOf(
-                    "to" to "ivantorrano04@gmail.com",
-                    "message" to hashMapOf(
-                        "subject" to "⚠️ RECLAMACIÓN: $restNombre",
-                        "html" to """
-                <div style="font-family: sans-serif; border: 1px solid #e0e0e0; padding: 20px; border-radius: 12px; max-width: 500px;">
-                    <div style="background: #D32F2F; padding: 15px; color: white; border-radius: 8px 8px 0 0; text-align: center;">
-                        <h2 style="margin: 0;">Solicitud de Verificación</h2>
-                    </div>
-                    
-                    <div style="padding: 20px; border: 1px solid #eee; border-top: none; border-radius: 0 0 8px 8px;">
-                        <p>El usuario <b>$userEmail</b> quiere gestionar:</p>
-                        <h1 style="color: #1a1a1a; font-size: 22px;">$restNombre</h1>
-                        
-                        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; font-size: 14px;">
-                            <p style="margin: 5px 0;"><strong>CIF:</strong> ${datosFormulario["cif"] ?: "No indicado"}</p>
-                            <p style="margin: 5px 0;"><strong>Cargo:</strong> ${datosFormulario["cargo"] ?: "No indicado"}</p>
-                            <p style="margin: 5px 0;"><strong>Teléfono:</strong> ${datosFormulario["telefono"] ?: "No indicado"}</p>
-                        </div>
+                // URL de tu Firebase Function
+                val functionUrl = "https://us-central1-navarres-8d2e3.cloudfunctions.net/aprobarDuenio"
 
-                        <div style="margin-top: 25px;">
+                // Construcción del enlace con todos los parámetros necesarios
+                val approvalLink = "$functionUrl?uid=${user.uid}&restId=$restId&restNombre=${restNombre}&email=${user.email}"
+
+                val emailHtml = """
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 40px 20px;">
+                    <div style="max-width: 600px; margin: auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                        <div style="background: #D32F2F; padding: 30px; text-align: center; color: white;">
+                            <p style="text-transform: uppercase; letter-spacing: 2px; margin: 0; font-size: 12px; opacity: 0.9;">Nueva Reclamación</p>
+                            <h1 style="margin: 10px 0 0 0; font-size: 26px;">${restNombre.uppercase()}</h1>
+                        </div>
+                        
+                        <div style="padding: 40px;">
+                            <p style="color: #555; font-size: 16px; line-height: 1.6;">Hola Administrador,</p>
+                            <p style="color: #555; font-size: 16px; line-height: 1.6;">Se ha recibido una nueva solicitud para gestionar un establecimiento en la plataforma <strong>Navarres</strong>.</p>
+                            
+                            <div style="background: #f8f9fa; border-left: 4px solid #D32F2F; padding: 20px; margin: 25px 0;">
+                                <p style="margin: 0 0 10px 0;"><strong>👤 Usuario:</strong> ${user.email}</p>
+                                <p style="margin: 0 0 10px 0;"><strong>🆔 UID:</strong> ${user.uid}</p>
+                                <p style="margin: 0 0 10px 0;"><strong>🏢 Cargo:</strong> ${datosFormulario["cargo"] ?: "N/A"}</p>
+                                <p style="margin: 0 0 10px 0;"><strong>📄 CIF/NIF:</strong> ${datosFormulario["cif"] ?: "N/A"}</p>
+                                <p style="margin: 0;"><strong>📞 Teléfono:</strong> ${datosFormulario["telefono"] ?: "N/A"}</p>
+                            </div>
+
+                            <p style="color: #e53935; font-size: 13px; font-style: italic; margin-top: 30px;">
+                                Al hacer clic en el botón de abajo, se vinculará automáticamente este restaurante al usuario y se le otorgarán permisos de edición.
+                            </p>
+
                             <a href="$approvalLink" 
-                               style="background: #2E7D32; color: white; padding: 15px; text-decoration: none; border-radius: 8px; font-weight: bold; display: block; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                               ✅ APROBAR Y ASIGNAR DUEÑO
+                               style="display: block; background: #2E7D32; color: white; padding: 18px; text-decoration: none; border-radius: 10px; font-weight: bold; text-align: center; margin-top: 20px; font-size: 16px;">
+                               ✅ APROBAR Y DAR ACCESO
                             </a>
                             
-                            <a href="mailto:$userEmail?subject=Navarres: Solicitud Denegada" 
-                               style="display: block; text-align: center; margin-top: 15px; color: #D32F2F; text-decoration: none; font-size: 14px;">
-                               ❌ Denegar manualmente
-                            </a>
+                            <hr style="border: 0; border-top: 1px solid #eee; margin: 40px 0 20px 0;">
+                            <p style="text-align: center; font-size: 12px; color: #999;">
+                                Si no reconoces esta solicitud o sospechas de fraude, simplemente ignora este correo o contacta con el usuario.
+                            </p>
                         </div>
                     </div>
                 </div>
             """.trimIndent()
+
+                val emailData = hashMapOf(
+                    "to" to "ivantorrano04@gmail.com",
+                    "message" to hashMapOf(
+                        "subject" to "🔔 SOLICITUD: $restNombre (${user.email})",
+                        "html" to emailHtml
                     ),
                     "createdAt" to com.google.firebase.Timestamp.now()
                 )
 
-                val success = repository.enviarSolicitudGenerica(solicitudData)
+                val success = repository.enviarSolicitudGenerica(emailData)
                 onResult(success)
+
             } catch (e: Exception) {
-                Log.e("NAV_ERROR", "Error al crear documento: ${e.message}")
+                Log.e("NAV_ERROR", "Error al procesar solicitud: ${e.message}")
                 onResult(false)
             }
         }

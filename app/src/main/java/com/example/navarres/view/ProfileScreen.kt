@@ -46,6 +46,8 @@ import java.util.Locale
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 
 // Colores Corporativos
@@ -420,11 +422,10 @@ fun ProfileScreen(
 
 @Composable
 fun ClaimRestaurantDialog(viewModel: ProfileViewModel, onDismiss: () -> Unit) {
-    // 1. CAMBIO A rememberSaveable: Si el teclado hace que el diálogo se redibuje,
-    // con 'remember' normal las variables se resetean a "". Con saveable NO.
     var query by rememberSaveable { mutableStateOf("") }
     var selectedId by rememberSaveable { mutableStateOf("") }
     var selectedName by rememberSaveable { mutableStateOf("") }
+    var selectedLocation by rememberSaveable { mutableStateOf("") }
 
     var cargo by rememberSaveable { mutableStateOf("") }
     var telefono by rememberSaveable { mutableStateOf("") }
@@ -436,127 +437,224 @@ fun ClaimRestaurantDialog(viewModel: ProfileViewModel, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
-    // LOG DE CONTROL DE RECOMPOSICIÓN
-    android.util.Log.d("NAV_DEBUG", "--- RECOMPONIENDO DIÁLOGO ---")
-    android.util.Log.d("NAV_DEBUG", "Estado Actual -> ID: '$selectedId', Query: '$query'")
-
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Card(
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .fillMaxHeight(0.85f),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier.fillMaxWidth().background(NavarresRed).padding(20.dp)) {
-                    Text("Solicitud de Verificación", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                // Cabecera elegante
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.horizontalGradient(listOf(NavarresRed, Color(0xFFB71C1C)))
+                        )
+                        .padding(vertical = 24.dp, horizontal = 20.dp)
+                ) {
+                    Column {
+                        Text(
+                            "Verificación de Negocio",
+                            color = Color.White,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Sigue los pasos para tomar el control de tu local",
+                            color = Color.White.copy(alpha = 0.8f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
 
                 Column(
-                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    Text("1. Local a reclamar", fontWeight = FontWeight.Bold, color = NavarresRed)
+                    // PASO 1
+                    StepHeader(number = "1", title = "Selecciona tu establecimiento")
 
-                    OutlinedTextField(
-                        value = if (selectedId.isNotEmpty()) selectedName else query,
-                        onValueChange = {
-                            if (selectedId.isEmpty()) {
+                    if (selectedId.isEmpty()) {
+                        OutlinedTextField(
+                            value = query,
+                            onValueChange = {
                                 query = it
                                 viewModel.buscarRestaurantes(it)
-                            }
-                        },
-                        label = { Text(if (selectedId.isNotEmpty()) "Seleccionado correctamente" else "Nombre del restaurante") },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Search, null, tint = if (selectedId.isNotEmpty()) Color.Green else NavarresRed) },
-                        trailingIcon = {
-                            if (selectedId.isNotEmpty()) {
-                                IconButton(onClick = {
-                                    android.util.Log.d("NAV_DEBUG", "Borrando selección")
-                                    selectedId = ""; selectedName = ""; query = ""
-                                }) {
-                                    Icon(Icons.Default.Close, null, tint = Color.Red)
+                            },
+                            placeholder = { Text("Escribe el nombre...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = { Icon(Icons.Default.Storefront, null, tint = NavarresRed) },
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+
+                        if (query.length >= 2) {
+                            Surface(
+                                modifier = Modifier.heightIn(max = 200.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, Color.LightGray.copy(0.5f)),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            ) {
+                                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                                    items(sugerencias) { rest ->
+                                        ListItem(
+                                            headlineContent = { Text(rest.nombre, fontWeight = FontWeight.Medium) },
+                                            supportingContent = { Text(rest.localidad, style = MaterialTheme.typography.bodySmall) },
+                                            leadingContent = { Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(18.dp)) },
+                                            modifier = Modifier.clickable {
+                                                selectedId = rest.id
+                                                selectedName = rest.nombre
+                                                selectedLocation = rest.localidad
+                                                focusManager.clearFocus()
+                                            },
+                                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                                        )
+                                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.LightGray.copy(0.2f))
+                                    }
                                 }
                             }
-                        },
-                        readOnly = selectedId.isNotEmpty(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    // Resultados de búsqueda
-                    if (selectedId.isEmpty() && query.length >= 2) {
+                        }
+                    } else {
+                        // Tarjeta de restaurante seleccionado
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.4f)),
-                            modifier = Modifier.heightIn(max = 200.dp)
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                            border = BorderStroke(1.dp, Color(0xFF2E7D32)),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                                sugerencias.forEach { rest ->
-                                    ListItem(
-                                        headlineContent = { Text(rest.nombre) },
-                                        supportingContent = { Text("${rest.localidad}") },
-                                        modifier = Modifier.clickable {
-                                            // LOG AL PULSAR
-                                            android.util.Log.d("NAV_DEBUG", "¡CLICK! Seleccionando: ${rest.nombre} con ID: ${rest.id}")
-                                            selectedId = rest.id
-                                            selectedName = rest.nombre
-                                            focusManager.clearFocus() // Cerramos teclado para evitar recomposiciones raras
-                                        }
-                                    )
-                                    HorizontalDivider(color = Color.LightGray.copy(0.3f))
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.CheckCircle, "Ok", tint = Color(0xFF2E7D32))
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(selectedName, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
+                                    Text(selectedLocation, style = MaterialTheme.typography.bodySmall, color = Color(0xFF1B5E20))
+                                }
+                                IconButton(onClick = { selectedId = ""; selectedName = "" }) {
+                                    Icon(Icons.Default.Edit, "Cambiar", tint = Color(0xFF2E7D32))
                                 }
                             }
                         }
                     }
 
-                    Text("2. Información profesional", fontWeight = FontWeight.Bold, color = NavarresRed)
-                    OutlinedTextField(value = cargo, onValueChange = { cargo = it }, label = { Text("Tu cargo") }, modifier = Modifier.fillMaxWidth())
+                    // PASO 2
+                    StepHeader(number = "2", title = "Información de contacto")
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = cif, onValueChange = { cif = it }, label = { Text("CIF / NIF") }, modifier = Modifier.weight(1f))
-                        OutlinedTextField(value = telefono, onValueChange = { telefono = it }, label = { Text("Teléfono") }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(
+                        value = cargo,
+                        onValueChange = { cargo = it },
+                        label = { Text("Cargo (Ej: Gerente, Dueño)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = cif,
+                            onValueChange = { cif = it.uppercase() },
+                            label = { Text("CIF / NIF") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = telefono,
+                            onValueChange = { if (it.length <= 15) telefono = it },
+                            label = { Text("Teléfono") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            singleLine = true
+                        )
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = aceptaTerminos, onCheckedChange = { aceptaTerminos = it })
-                        Text("Certifico que soy el representante legal.", style = MaterialTheme.typography.labelSmall)
+                    Surface(
+                        color = NavarresRed.copy(alpha = 0.05f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = aceptaTerminos,
+                                onCheckedChange = { aceptaTerminos = it },
+                                colors = CheckboxDefaults.colors(checkedColor = NavarresRed)
+                            )
+                            Text(
+                                "Certifico que tengo autoridad legal sobre este negocio y acepto los términos.",
+                                style = MaterialTheme.typography.labelSmall,
+                                lineHeight = 14.sp
+                            )
+                        }
                     }
                 }
 
-                Row(modifier = Modifier.padding(24.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("CANCELAR") }
+                // Botones inferiores
+                Row(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("CANCELAR", color = Color.Gray)
+                    }
                     Button(
                         onClick = {
-                            // LOG CRÍTICO ANTES DE ENVIAR
-                            android.util.Log.d("NAV_DEBUG", "BOTÓN ENVIAR PULSADO")
-                            android.util.Log.d("NAV_DEBUG", "Datos a enviar -> ID: '$selectedId', Nombre: '$selectedName', CIF: '$cif'")
-
-                            if (selectedId.isNotEmpty()) {
-                                viewModel.enviarSolicitudDossierEmail(
-                                    restId = selectedId,
-                                    restNombre = selectedName,
-                                    datosFormulario = mapOf("cargo" to cargo, "cif" to cif, "telefono" to telefono)
-                                ) { success ->
-                                    android.util.Log.d("NAV_DEBUG", "Resultado servidor: $success")
-                                    if (success) {
-                                        Toast.makeText(context, "Enviado con éxito", Toast.LENGTH_LONG).show()
-                                        onDismiss()
-                                    } else {
-                                        Toast.makeText(context, "Error en el servidor / Firestore", Toast.LENGTH_SHORT).show()
-                                    }
+                            viewModel.enviarSolicitudDossierEmail(
+                                restId = selectedId,
+                                restNombre = selectedName,
+                                datosFormulario = mapOf("cargo" to cargo, "cif" to cif, "telefono" to telefono)
+                            ) { success ->
+                                if (success) {
+                                    Toast.makeText(context, "✅ Solicitud enviada", Toast.LENGTH_LONG).show()
+                                    onDismiss()
+                                } else {
+                                    Toast.makeText(context, "❌ Error al enviar", Toast.LENGTH_SHORT).show()
                                 }
-                            } else {
-                                android.util.Log.e("NAV_DEBUG", "ERROR: selectedId estaba VACÍO al dar al botón")
-                                Toast.makeText(context, "Por favor, selecciona un restaurante de la lista", Toast.LENGTH_SHORT).show()
                             }
                         },
-                        enabled = (selectedId.isNotEmpty() || query.isNotEmpty()) && cif.isNotBlank() && aceptaTerminos,
-                        modifier = Modifier.weight(1f),
+                        enabled = selectedId.isNotEmpty() && cif.length > 5 && cargo.isNotBlank() && aceptaTerminos,
+                        modifier = Modifier.weight(1.5f),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = NavarresRed)
                     ) {
-                        Text("ENVIAR")
+                        Text("ENVIAR SOLICITUD", fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun StepHeader(number: String, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            color = NavarresRed,
+            shape = CircleShape,
+            modifier = Modifier.size(24.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(number, color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     }
 }
 @Composable
