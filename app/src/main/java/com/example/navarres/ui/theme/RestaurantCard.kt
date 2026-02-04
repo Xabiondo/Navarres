@@ -38,18 +38,18 @@ fun RestaurantCard(
     onFavoriteClick: () -> Unit,
     onClick: () -> Unit
 ) {
-    // Paleta de colores local
+//Colores del proyecto
     val GoldStar = Color(0xFFFFC107)
     val CorporativeRed = Color(0xFFB30000)
 
-    // Configuración visual según el estado
+    // Dependiendo del valor, cambia el color
     val (statusText, statusColor, containerColor) = when (openStatus) {
         OpenStatus.OPEN -> Triple("ABIERTO", Color(0xFF2E7D32), Color(0xFFE8F5E9)) // Verde
-        // --- CAMBIO AQUI: ROJO PARA CERRADO ---
         OpenStatus.CLOSED -> Triple("CERRADO", Color(0xFFD32F2F), Color(0xFFFFEBEE)) // Rojo / Fondo Rojo claro
         OpenStatus.UNKNOWN -> Triple("HORARIO DESC.", Color(0xFFEF6C00), Color(0xFFFFF3E0)) // Naranja
     }
 
+    //El fondo blanco , sobre el que se pinta todo
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -62,10 +62,11 @@ fun RestaurantCard(
         Row(
             modifier = Modifier
                 .padding(12.dp)
+                //Distancia de 12dp a ambos lados
                 .fillMaxWidth()
                 .height(IntrinsicSize.Min)
         ) {
-            // 1. IMAGEN
+            // 1. aqui esta la imagen del restaurante
             Card(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.size(110.dp),
@@ -81,14 +82,14 @@ fun RestaurantCard(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // 2. CONTENIDO PRINCIPAL
+            // 2. Contenido del restaurante
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // --- A. CABECERA (Nombre + Fav) ---
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -114,7 +115,7 @@ fun RestaurantCard(
                     )
                 }
 
-                // --- B. CATEGORÍA ---
+                // -categoria
                 if (category.isNotEmpty()) {
                     Surface(
                         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
@@ -132,7 +133,7 @@ fun RestaurantCard(
                     }
                 }
 
-                // --- C. RATING ---
+                // -valoración-
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "$rating",
@@ -151,7 +152,7 @@ fun RestaurantCard(
                     )
                 }
 
-                // --- D. FOOTER: DISTANCIA Y ESTADO ---
+                // -footer
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -211,7 +212,7 @@ fun RestaurantCard(
     }
 }
 
-// Helper de estrellas
+// Función de ui para ver las estrellas
 @Composable
 fun RatingBar(
     rating: Double,

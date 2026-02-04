@@ -9,5 +9,5 @@ data class User(
     val bio: String = "",
     val city: String = "",
     val isEmailPublic: Boolean = false,
-    val ownerOf: String? = null // <--- DEBE ESTAR AQUÍ
+    val ownerOf: String? = null
 )

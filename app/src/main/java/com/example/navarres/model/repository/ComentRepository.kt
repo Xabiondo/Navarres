@@ -17,13 +17,16 @@ class CommentRepository {
     private val collectionRef = db.collection("comentarios")
 
     /**
-     * FUNCIÓN CLAVE: Devuelve un FLOW (un flujo de datos vivo).
-     * Se ejecuta automáticamente cada vez que alguien escribe en la base de datos.
+     * Está función devuelve un flow, que es un objeto que se ejecuta cada vez
+     * que un apersona escribe algo en la base de datos, asi coneguimos el efecto
+     * de que los chats van en vivo
      */
     fun obtenerFlujoComentarios(restauranteId: String): Flow<List<Comentario>> = callbackFlow {
         val listener = collectionRef
             .whereEqualTo("restaurantId", restauranteId)
             .orderBy("date", Query.Direction.DESCENDING)
+
+            //Básicamente aquí hemos creado un objeto que esta pendiente de cuando hay cambios en la base de datos.
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e("CommentRepo", "Error escuchando cambios: ${error.message}")
@@ -33,7 +36,7 @@ class CommentRepository {
 
                 if (snapshot != null) {
                     val lista = snapshot.toObjects(Comentario::class.java)
-                    trySend(lista) // Enviamos la nueva lista a la app
+                    trySend(lista) // Esto envía los nuevos objetos, no se usa return porque entonces se sale de la función
                 }
             }
 

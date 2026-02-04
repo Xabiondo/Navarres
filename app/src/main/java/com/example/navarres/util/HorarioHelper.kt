@@ -14,20 +14,18 @@ object HorarioHelper {
         val hoyKey = getDiaActualKey()
         val horarioRaw = horarios[hoyKey]
 
-        // Depuración: Ver qué está leyendo exactamente
-        // Log.d("HorarioHelper", "Día: $hoyKey, Dato: $horarioRaw")
+
 
         if (horarioRaw.isNullOrBlank()) return OpenStatus.UNKNOWN
 
-        // 1. Limpieza AGRESIVA
-        // Quitamos puntos, espacios invisibles y normalizamos guiones
+
         val texto = horarioRaw.lowercase().trim()
-            .replace(".", "")         // "p.m." -> "pm"
-            .replace(Regex("\\s+"), "") // Quitar CUALQUIER espacio (incluidos los raros)
-            .replace("p.m", "pm")     // Asegurar normalización
+            .replace(".", "")
+            .replace(Regex("\\s+"), "")
+            .replace("p.m", "pm")
             .replace("a.m", "am")
 
-        // Casos directos
+
         if (texto.contains("cerrado") || texto.contains("closed")) return OpenStatus.CLOSED
         if (texto.contains("abierto") || texto.contains("24h")) return OpenStatus.OPEN
 

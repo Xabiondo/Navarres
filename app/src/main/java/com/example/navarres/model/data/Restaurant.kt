@@ -5,6 +5,7 @@ import com.google.firebase.firestore.DocumentId
 data class Restaurant(
     @DocumentId
     val id: String = "", // La anotación @DocumentId rellena esto automático
+    //La anotación funciona para poder relacionar automáticamente los restaurantes con los comentarios
     val nombre: String = "",
     val categoria: String = "",
     val modalidad: String = "",

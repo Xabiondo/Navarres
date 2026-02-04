@@ -53,6 +53,7 @@ fun ComentariosView(
     viewModel: ComentariosViewModel = viewModel()
 ) {
     val threads by viewModel.threads.collectAsState()
+    //ESto hace que sea asíncrona, si detecta algo actualiza la pantalla en otro hilo.
     val isLoading by viewModel.isLoading.collectAsState()
 
     var showWriteDialog by remember { mutableStateOf(false) }
@@ -61,6 +62,7 @@ fun ComentariosView(
     LaunchedEffect(restaurantId) {
         viewModel.cargarComentarios(restaurantId)
     }
+    //Función que se ejecuta cuando se crea la pantalla, para traer todo s los comentarios de firebase
 
     Scaffold(
         topBar = {
@@ -139,8 +141,7 @@ fun ComentariosView(
     }
 }
 
-// ... EL RESTO DEL ARCHIVO (CommentThreadItem, ReviewItemCard, etc) SIGUE IGUAL ...
-// (Lo copio aquí abajo para que puedas copiar todo el archivo de golpe si prefieres)
+
 
 @Composable
 fun CommentThreadItem(

@@ -49,11 +49,11 @@ class RestaurantRepository {
         return ejecutarConsulta(query)
     }
 
-// ... (tus imports actuales)
+
 
     suspend fun nombreEmpiezaPor(query: String): List<Restaurant> {
         return try {
-            // Normalizamos la búsqueda: Primera en mayúscula, resto minúscula (Ej: "Alhambra")
+
             val formattedQuery = query.lowercase().replaceFirstChar { it.uppercase() }
 
             val snapshot = db.collection("restaurantes")
@@ -69,15 +69,12 @@ class RestaurantRepository {
         }
     }
 
-    // HELPER: Mapea el Document ID (ej: UR000005) al campo 'id' del objeto
-// ... (resto de imports)
 
     private suspend fun ejecutarConsulta(query: Query): List<Restaurant> {
         return try {
             val snapshot = query.get().await()
             snapshot.documents.mapNotNull { doc ->
                 val restaurant = doc.toObject(Restaurant::class.java)
-                // CLAVE: Inyectamos el ID del documento de Firebase en el campo 'id' de la data class
                 restaurant?.copy(id = doc.id)
             }
         } catch (e: Exception) {
@@ -86,7 +83,7 @@ class RestaurantRepository {
         }
     }
 
-// ... (resto del archivo)
+
 
     suspend fun actualizarDatosRestaurante(restaurantId: String, updates: Map<String, Any>): Boolean {
         if (restaurantId.isEmpty()) return false
@@ -99,10 +96,8 @@ class RestaurantRepository {
         }
     }
 
-    // Dentro de tu RestauranteRepository.kt
     suspend fun actualizarRestaurante(restaurant: Restaurant): Boolean {
         return try {
-            // Buscamos el documento por su ID y actualizamos los campos
             FirebaseFirestore.getInstance()
                 .collection("restaurantes")
                 .document(restaurant.id)
