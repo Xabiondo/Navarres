@@ -9,26 +9,36 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.navarres.model.data.Restaurant
+import com.example.navarres.model.data.RestaurantStats
 import com.example.navarres.model.repository.AuthRepository
+import com.example.navarres.model.repository.CommentRepository
 import com.example.navarres.model.repository.LocationRepository
 import com.example.navarres.model.repository.RestaurantRepository
 import com.example.navarres.model.repository.UserRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class RestauranteDetailViewModel(application: Application) : AndroidViewModel(application) {
 
+    // Repositorios fusionados
     private val locationRepo = LocationRepository(application)
-    private val restaurantRepo = RestaurantRepository()
-    private val authRepo = AuthRepository()
-    private val userRepo = UserRepository()
+    private val restaurantRepo = RestaurantRepository() // De IVAN
+    private val authRepo = AuthRepository() // De IVAN
+    private val userRepo = UserRepository() // De IVAN
+    private val commentRepo = CommentRepository() // De MERGE
 
     private val _selectedRestaurant = MutableStateFlow<Restaurant?>(null)
     val selectedRestaurant = _selectedRestaurant.asStateFlow()
 
+    // Estado de Dueño (De IVAN)
     private val _isOwner = MutableStateFlow(false)
     val isOwner = _isOwner.asStateFlow()
+
+    // Estado de Estadísticas (De MERGE)
+    private val _stats = MutableStateFlow(RestaurantStats())
+    val stats = _stats.asStateFlow()
 
     var userLocation by mutableStateOf<Location?>(null)
         private set
@@ -36,15 +46,17 @@ class RestauranteDetailViewModel(application: Application) : AndroidViewModel(ap
     private val defaultLat = 42.8137
     private val defaultLon = -1.6406
 
+    private var statsJob: Job? = null
+
     fun selectRestaurant(restaurant: Restaurant) {
         _selectedRestaurant.value = restaurant
-        checkOwnership(restaurant)
+        checkOwnership(restaurant) // Lógica de IVAN
         refreshLocation()
+        subscribeToStats(restaurant.id) // Lógica de MERGE
     }
 
     /**
-     * Comprueba si el usuario actual tiene permisos de edición.
-     * Funciona detectando si el UID del usuario coincide con el 'ownerId' del restaurante.
+     * Lógica de IVAN: Comprueba si el usuario es dueño
      */
     private fun checkOwnership(restaurant: Restaurant) {
         val fbUser = authRepo.getCurrentUser()
@@ -70,7 +82,7 @@ class RestauranteDetailViewModel(application: Application) : AndroidViewModel(ap
     }
 
     /**
-     * Sube los cambios a Firestore y actualiza la vista.
+     * Lógica de IVAN: Actualiza datos del restaurante
      */
     fun updateRestaurantData(updatedRestaurant: Restaurant, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
@@ -94,11 +106,49 @@ class RestauranteDetailViewModel(application: Application) : AndroidViewModel(ap
         }
     }
 
+    // Lógica de MERGE: Ya no hace falta llamar a esto manualmente, es automático
+    fun refreshStats() { }
+
     private fun refreshLocation() {
         viewModelScope.launch {
             val loc = locationRepo.getUserLocation()
             if (loc != null) {
                 userLocation = loc
+            }
+        }
+    }
+
+    /**
+     * Lógica de MERGE: Suscripción en tiempo real a comentarios/stats
+     */
+    private fun subscribeToStats(restaurantId: String) {
+        statsJob?.cancel()
+
+        statsJob = viewModelScope.launch {
+            // Escuchamos el flujo continuo de comentarios
+            commentRepo.obtenerFlujoComentarios(restaurantId).collect { comments ->
+
+                if (comments.isEmpty()) {
+                    _stats.value = RestaurantStats()
+                } else {
+                    // Filtramos respuestas (parentId == null)
+                    val reviewsReales = comments.filter { it.parentId == null }
+
+                    if (reviewsReales.isEmpty()) {
+                        _stats.value = RestaurantStats()
+                    } else {
+                        val total = reviewsReales.size
+                        val sum = reviewsReales.sumOf { it.rating }
+                        val average = sum.toDouble() / total
+                        val distribution = reviewsReales.groupingBy { it.rating }.eachCount()
+
+                        _stats.value = RestaurantStats(
+                            averageRating = average,
+                            totalReviews = total,
+                            countsPerStar = distribution
+                        )
+                    }
+                }
             }
         }
     }

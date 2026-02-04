@@ -30,7 +30,7 @@ class ProfileViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState = _uiState.asStateFlow()
 
-    // --- NUEVO ESTADO PARA BÚSQUEDA ---
+    // --- NUEVO ESTADO PARA BÚSQUEDA (De IVAN) ---
     private val _busquedaRestaurantes = MutableStateFlow<List<Restaurant>>(emptyList())
     val busquedaRestaurantes = _busquedaRestaurantes.asStateFlow()
 
@@ -44,7 +44,7 @@ class ProfileViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(isLoading = true)
             repository.getUserFlow(uid)
                 .catch { e ->
-                    Log.e("ProfileViewModel", "Error: ${e.message}")
+                    Log.e("ProfileViewModel", "Error escuchando cambios: ${e.message}")
                     _uiState.value = _uiState.value.copy(isLoading = false)
                 }
                 .collect { updatedUser ->
@@ -53,6 +53,15 @@ class ProfileViewModel : ViewModel() {
                 }
         }
     }
+
+    // --- NUEVA FUNCIÓN PARA ACTUALIZAR NOMBRE (De MERGE) ---
+    fun updateDisplayName(newName: String) {
+        val uid = auth.currentUser?.uid ?: return
+        // Actualización optimista local
+        _userProfile.value = _userProfile.value.copy(displayName = newName)
+        viewModelScope.launch { repository.updateUserField(uid, "displayName", newName) }
+    }
+    // --------------------------------------------
 
     fun updateBio(newBio: String) {
         val uid = auth.currentUser?.uid ?: return
@@ -87,23 +96,21 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    // --- MÉTODOS DE BÚSQUEDA Y SOLICITUD ---
-// --- NUEVO MÉTODO PARA BUSCAR EN EL DIÁLOGO ---
+    // --- MÉTODOS DE BÚSQUEDA Y SOLICITUD (De IVAN) ---
     fun buscarRestaurantes(query: String) {
         if (query.isEmpty()) {
             _busquedaRestaurantes.value = emptyList()
             return
         }
 
-        // Normalizamos la búsqueda: pasamos la primera a Mayúscula por si acaso
+        // Normalizamos la búsqueda: pasamos la primera a Mayúscula
         val formattedQuery = query.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 
         viewModelScope.launch {
             try {
                 val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
 
-                // LOG DE CONTROL: Mira esto en el Logcat
-                android.util.Log.d("NAV_DEBUG", "Buscando en Firebase: '$formattedQuery' (Original: '$query')")
+                Log.d("NAV_DEBUG", "Buscando en Firebase: '$formattedQuery' (Original: '$query')")
 
                 db.collection("restaurantes")
                     .orderBy("nombre") // IMPORTANTE: Para que el rango funcione bien
@@ -116,51 +123,18 @@ class ProfileViewModel : ViewModel() {
                             val rest = doc.toObject(Restaurant::class.java)
                             rest?.copy(id = doc.id)
                         }
-                        android.util.Log.d("NAV_DEBUG", "Encontrados: ${lista.size}")
+                        Log.d("NAV_DEBUG", "Encontrados: ${lista.size}")
                         _busquedaRestaurantes.value = lista
                     }
                     .addOnFailureListener { e ->
-                        android.util.Log.e("NAV_DEBUG", "Fallo en búsqueda: ${e.message}")
+                        Log.e("NAV_DEBUG", "Fallo en búsqueda: ${e.message}")
                     }
             } catch (e: Exception) {
-                android.util.Log.e("NAV_DEBUG", "Excepción: ${e.message}")
+                Log.e("NAV_DEBUG", "Excepción: ${e.message}")
             }
         }
     }
-    fun enviarSolicitud(restId: String, restNombre: String, mensaje: String, onResult: (Boolean) -> Unit) {
-        val uid = auth.currentUser?.uid ?: return
-        val email = _userProfile.value.email
-        viewModelScope.launch {
-            val success = repository.enviarSolicitudDueno(uid, email, restId, restNombre, mensaje)
-            onResult(success)
-        }
-    }
 
-    // Actualiza esta función en tu ViewModel
-    fun enviarSolicitudExtensa(
-        restId: String,
-        restNombre: String,
-        datos: Map<String, String>,
-        onResult: (Boolean) -> Unit
-    ) {
-        val user = _userProfile.value
-        viewModelScope.launch {
-            // Combinamos los datos del usuario con los del formulario
-            val solicitudCompleta = datos + mapOf(
-                "userId" to user.uid,
-                "userEmail" to user.email,
-                "restaurantId" to restId,
-                "restaurantNombre" to restNombre,
-                "fecha" to java.util.Date().toString(),
-                "estado" to "pendiente"
-            )
-            // Usamos el repositorio existente para enviar el mapa completo
-            val success = repository.enviarSolicitudGenerica(solicitudCompleta)
-            onResult(success)
-        }
-    }
-
-    // En ProfileViewModel.kt
     fun enviarSolicitudDossierEmail(
         restId: String,
         restNombre: String,

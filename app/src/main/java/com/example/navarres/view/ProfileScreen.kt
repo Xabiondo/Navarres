@@ -1,4 +1,5 @@
 package com.example.navarres.view
+
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
@@ -50,7 +51,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 
-// Colores Corporativos
 private val NavarresRed = Color(0xFFB30000)
 private val NavarresDarkRed = Color(0xFF800000)
 private val NavarresGreen = Color(0xFF2E7D32)
@@ -62,7 +62,8 @@ object ComposeFileProvider {
             directory.mkdirs()
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
             val file = File.createTempFile("JPEG_${timestamp}_", ".jpg", directory)
-            val authority = "com.example.navarrest2.fileprovider" // Asegúrate que coincida con tu AndroidManifest
+            // IMPORTANTE: Revisa que esto coincida con tu AndroidManifest.xml -> provider -> authorities
+            val authority = "com.example.navarrest2.fileprovider"
             FileProvider.getUriForFile(context, authority, file)
         } catch (e: Exception) {
             null
@@ -79,108 +80,50 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
-    // Estados para diálogos de edición de texto
+    // Estados para diálogos
     var showEditBioDialog by remember { mutableStateOf(false) }
     var showEditCityDialog by remember { mutableStateOf(false) }
-
-    // Estado para el menú de selección de foto (Cámara vs Galería)
+    var showEditNameDialog by remember { mutableStateOf(false) } // Recuperado del MERGE
     var showPhotoSourceDialog by remember { mutableStateOf(false) }
-
-    // NUEVO: Estado para el diálogo de reclamación
-    var showClaimDialog by remember { mutableStateOf(false) }
+    var showClaimDialog by remember { mutableStateOf(false) } // De IVAN
 
     val context = LocalContext.current
     var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
-    // 1. LAUNCHER DE CÁMARA
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
-        onResult = { success ->
-            if (success && tempPhotoUri != null) {
-                viewModel.onPhotoTaken(tempPhotoUri!!)
-            }
-        }
+        onResult = { success -> if (success && tempPhotoUri != null) viewModel.onPhotoTaken(tempPhotoUri!!) }
     )
 
-    // 2. LAUNCHER DE GALERÍA (NUEVO)
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            viewModel.onPhotoTaken(uri)
-        }
-    }
+    ) { uri: Uri? -> if (uri != null) viewModel.onPhotoTaken(uri) }
 
-    // Función auxiliar para lanzar cámara
     fun launchCamera() {
         try {
             val uri = ComposeFileProvider.getImageUri(context)
             if (uri != null) {
                 tempPhotoUri = uri
                 cameraLauncher.launch(uri)
-            } else {
-                Toast.makeText(context, "No se pudo acceder al almacenamiento", Toast.LENGTH_SHORT).show()
-            }
-        } catch (e: Exception) {
-            Toast.makeText(context, "Error al iniciar la cámara", Toast.LENGTH_SHORT).show()
-        }
+            } else { Toast.makeText(context, "Error almacenamiento", Toast.LENGTH_SHORT).show() }
+        } catch (e: Exception) { Toast.makeText(context, "Error cámara", Toast.LENGTH_SHORT).show() }
     }
 
-    // --- PANTALLA PRINCIPAL ---
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(scrollState)
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(scrollState)
     ) {
-
         // HEADER
-        Box(
-            modifier = Modifier.fillMaxWidth().height(260.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .background(brush = Brush.verticalGradient(colors = listOf(NavarresRed, NavarresDarkRed)))
-            ) {
-                Text(
-                    text = "Perfil Gourmet",
-                    color = Color.White.copy(alpha = 0.9f),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(16.dp).align(Alignment.TopCenter)
-                )
+        Box(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().height(180.dp).background(brush = Brush.verticalGradient(colors = listOf(NavarresRed, NavarresDarkRed)))) {
+                Text("Perfil Gourmet", color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp).align(Alignment.TopCenter))
             }
-
-            Box(
-                modifier = Modifier.align(Alignment.BottomCenter).size(140.dp)
-            ) {
+            Box(modifier = Modifier.align(Alignment.BottomCenter).size(140.dp)) {
                 val currentPhoto = if(uiState.photoUrl.isNotEmpty()) uiState.photoUrl else userProfile.photoUrl
-
                 if (currentPhoto.isNotEmpty()) {
-                    AsyncImage(
-                        model = currentPhoto,
-                        contentDescription = "Foto de perfil",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                            .border(4.dp, MaterialTheme.colorScheme.background, CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
+                    AsyncImage(model = currentPhoto, contentDescription = "Foto", modifier = Modifier.fillMaxSize().clip(CircleShape).border(4.dp, MaterialTheme.colorScheme.background, CircleShape), contentScale = ContentScale.Crop)
                 } else {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(4.dp, MaterialTheme.colorScheme.background),
-                        shadowElevation = 4.dp
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(20.dp)
-                        )
+                    Surface(modifier = Modifier.fillMaxSize(), shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, border = BorderStroke(4.dp, MaterialTheme.colorScheme.background)) {
+                        Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp))
                     }
                 }
 
@@ -188,7 +131,7 @@ fun ProfileScreen(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = NavarresRed)
                 }
 
-                // BOTÓN DE CAMBIO DE FOTO
+                // BOTÓN DE CAMBIO DE FOTO (Estilo mejorado de IVAN)
                 SmallFloatingActionButton(
                     onClick = {
                         if (!uiState.isLoading) showPhotoSourceDialog = true
@@ -203,22 +146,31 @@ fun ProfileScreen(
             }
         }
 
-        // DATOS BÁSICOS
+        // DATOS BÁSICOS (NOMBRE Y EMAIL)
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val displayName = if (userProfile.email.contains("@")) {
+            val displayName = if (userProfile.displayName.isNotBlank()) {
+                userProfile.displayName
+            } else if (userProfile.email.contains("@")) {
                 userProfile.email.substringBefore("@").replaceFirstChar { it.uppercase() }
             } else {
-                userProfile.email.ifEmpty { "Usuario" }
+                "Usuario"
             }
 
-            Text(
-                text = displayName,
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            // Nombre con botón de editar
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = displayName,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                IconButton(onClick = { showEditNameDialog = true }, modifier = Modifier.size(24.dp).padding(start = 4.dp)) {
+                    Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                }
+            }
+
             Text(
                 text = if (userProfile.isEmailPublic) userProfile.email else "Email privado",
                 style = MaterialTheme.typography.bodyMedium,
@@ -228,15 +180,10 @@ fun ProfileScreen(
         }
 
         // ESTADÍSTICAS
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
             ProfileStatItem(number = "12", label = "Reseñas", icon = Icons.Outlined.RestaurantMenu)
             Box(modifier = Modifier.width(1.dp).height(40.dp).background(MaterialTheme.colorScheme.outlineVariant))
-            val favCount = userProfile.favorites.size.toString()
-            ProfileStatItem(number = favCount, label = "Favoritos", icon = Icons.Outlined.FavoriteBorder)
+            ProfileStatItem(number = userProfile.favorites.size.toString(), label = "Favoritos", icon = Icons.Outlined.FavoriteBorder)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -256,7 +203,7 @@ fun ProfileScreen(
         // AJUSTES
         ProfileSectionCard(title = "Ajustes de Cuenta", showEdit = false) {
 
-            // NUEVO: BOTÓN PARA RECLAMAR DUEÑO
+            // BOTÓN PARA RECLAMAR DUEÑO (De IVAN)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -288,42 +235,20 @@ fun ProfileScreen(
                     }
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Switch(
-                        checked = userProfile.isEmailPublic,
-                        onCheckedChange = { isPublic -> viewModel.updateEmailPrivacy(isPublic) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = NavarresRed,
-                            uncheckedTrackColor = MaterialTheme.colorScheme.outline
-                        ),
-                        modifier = Modifier.graphicsLayer(scaleX = 0.8f, scaleY = 0.8f)
-                    )
-                    Text(
-                        text = if (userProfile.isEmailPublic) "Visible" else "Oculto",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (userProfile.isEmailPublic) NavarresRed else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
-                    )
+                    Switch(checked = userProfile.isEmailPublic, onCheckedChange = { viewModel.updateEmailPrivacy(it) }, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = NavarresRed, uncheckedTrackColor = MaterialTheme.colorScheme.outline), modifier = Modifier.graphicsLayer(scaleX = 0.8f, scaleY = 0.8f))
+                    Text(if (userProfile.isEmailPublic) "Visible" else "Oculto", style = MaterialTheme.typography.labelSmall, color = if (userProfile.isEmailPublic) NavarresRed else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
                 }
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
             // CIUDAD
-            Row(
-                modifier = Modifier.fillMaxWidth().clickable { showEditCityDialog = true },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            Row(modifier = Modifier.fillMaxWidth().clickable { showEditCityDialog = true }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.LocationOn, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text("Ubicación", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (userProfile.city.isNotEmpty()) {
-                            Text(userProfile.city, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                        } else {
-                            Text("Añadir ciudad", style = MaterialTheme.typography.bodyMedium, color = NavarresRed, fontWeight = FontWeight.SemiBold)
-                        }
+                        if (userProfile.city.isNotEmpty()) Text(userProfile.city, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface) else Text("Añadir ciudad", style = MaterialTheme.typography.bodyMedium, color = NavarresRed, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -332,20 +257,7 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // BOTÓN CERRAR SESIÓN
-        Button(
-            onClick = {
-                viewModel.logout()
-                onLogoutClick()
-            },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(50.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = NavarresRed
-            ),
-            border = BorderStroke(1.dp, NavarresRed.copy(alpha = 0.5f)),
-            shape = RoundedCornerShape(8.dp)
-        ) {
+        Button(onClick = { viewModel.logout(); onLogoutClick() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = NavarresRed), border = BorderStroke(1.dp, NavarresRed.copy(alpha = 0.5f)), shape = RoundedCornerShape(8.dp)) {
             Icon(Icons.Default.ExitToApp, null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text("Cerrar Sesión")
@@ -354,7 +266,6 @@ fun ProfileScreen(
     }
 
     // --- DIÁLOGOS ---
-
     if (showEditBioDialog) {
         EditDialog("Editar biografía", userProfile.bio, { showEditBioDialog = false }, { viewModel.updateBio(it); showEditBioDialog = false })
     }
@@ -363,11 +274,17 @@ fun ProfileScreen(
         EditDialog("Editar ciudad", userProfile.city, { showEditCityDialog = false }, { viewModel.updateCity(it); showEditCityDialog = false })
     }
 
-    // NUEVO: Diálogo de Reclamación
+    // DIÁLOGO EDITAR NOMBRE (Recuperado del MERGE)
+    if (showEditNameDialog) {
+        EditDialog("Editar nombre de usuario", userProfile.displayName, { showEditNameDialog = false }, { viewModel.updateDisplayName(it); showEditNameDialog = false })
+    }
+
+    // NUEVO: Diálogo de Reclamación (De IVAN)
     if (showClaimDialog) {
         ClaimRestaurantDialog(viewModel = viewModel, onDismiss = { showClaimDialog = false })
     }
 
+    // NUEVO: Diálogo de Foto mejorado (De IVAN)
     if (showPhotoSourceDialog) {
         AlertDialog(
             onDismissRequest = { showPhotoSourceDialog = false },
@@ -430,7 +347,6 @@ fun ClaimRestaurantDialog(viewModel: ProfileViewModel, onDismiss: () -> Unit) {
     var cargo by rememberSaveable { mutableStateOf("") }
     var telefono by rememberSaveable { mutableStateOf("") }
     var cif by rememberSaveable { mutableStateOf("") }
-    var mensaje by rememberSaveable { mutableStateOf("") }
     var aceptaTerminos by rememberSaveable { mutableStateOf(false) }
 
     val sugerencias by viewModel.busquedaRestaurantes.collectAsState()
@@ -657,6 +573,7 @@ fun StepHeader(number: String, title: String) {
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     }
 }
+
 @Composable
 fun ProfileStatItem(number: String, label: String, icon: ImageVector) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {

@@ -1,6 +1,10 @@
-package com.example.navarres.model.data;
+package com.example.navarres.model.data
+
+import com.google.firebase.firestore.DocumentId
+
 data class Restaurant(
-    val id: String = "", // Document ID de Firestore
+    @DocumentId
+    val id: String = "", // La anotación @DocumentId rellena esto automático
     val nombre: String = "",
     val categoria: String = "",
     val modalidad: String = "",
@@ -16,5 +20,5 @@ data class Restaurant(
     val valoracion: Double = 0.0,
     val horarios: Map<String, String> = emptyMap(),
     val rutaCarta: String = "",
-    val ownerId: String = ""
+    val ownerId: String = "" // Importante para la función de reclamar negocio
 )
