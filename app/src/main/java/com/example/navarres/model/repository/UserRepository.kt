@@ -1,6 +1,8 @@
 package com.example.navarres.model.repository
 
 import android.net.Uri
+import android.util.Log
+import com.example.navarres.model.data.OwnerRequest
 import com.example.navarres.model.data.User
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -105,4 +107,46 @@ class UserRepository {
         }
         awaitClose { subscription.remove() }
     }
+
+    // En UserRepository.kt
+// Añade esto a tu UserRepository.kt
+    suspend fun enviarSolicitudDueno(
+        uid: String,
+        email: String,
+        restauranteId: String,
+        nombreRest: String,
+        mensaje: String
+    ): Boolean {
+        return try {
+            val solicitud = hashMapOf(
+                "uid" to uid,
+                "email" to email,
+                "restauranteId" to restauranteId,
+                "nombreRestaurante" to nombreRest,
+                "mensaje" to mensaje,
+                "fecha" to System.currentTimeMillis(),
+                "estado" to "pendiente"
+            )
+            db.collection("solicitudes_dueño").add(solicitud).await()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // En UserRepository.kt
+    suspend fun enviarSolicitudGenerica(datos: Map<String, Any>): Boolean {
+        return try {
+            // CAMBIAMOS EL NOMBRE AQUÍ PARA QUE COINCIDA CON LA EXTENSIÓN
+            db.collection("solicitudes_verificacion")
+                .add(datos)
+                .await()
+            true
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error al enviar: ${e.message}")
+            false
+        }
+    }
+
+
 }

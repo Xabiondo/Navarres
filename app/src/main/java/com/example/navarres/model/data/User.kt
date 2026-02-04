@@ -8,5 +8,6 @@ data class User(
     val favorites: List<String> = emptyList(),
     val bio: String = "",
     val city: String = "",
-    val isEmailPublic: Boolean = false
+    val isEmailPublic: Boolean = false,
+    val ownerOf: String? = null // <--- DEBE ESTAR AQUÍ
 )
