@@ -108,6 +108,16 @@ class UserRepository {
         awaitClose { subscription.remove() }
     }
 
+    suspend fun getUser(uid: String): User? {
+        return try {
+            val snapshot = db.collection("users").document(uid).get().await()
+            snapshot.toObject(User::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+
     // En UserRepository.kt
 // Añade esto a tu UserRepository.kt
     suspend fun enviarSolicitudDueno(

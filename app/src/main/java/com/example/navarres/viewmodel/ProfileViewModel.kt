@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import com.example.navarres.model.data.Idioma;
 
 data class ProfileUiState(
     val isLoading: Boolean = false,
@@ -33,6 +34,9 @@ class ProfileViewModel : ViewModel() {
     // --- NUEVO ESTADO PARA BÚSQUEDA (De IVAN) ---
     private val _busquedaRestaurantes = MutableStateFlow<List<Restaurant>>(emptyList())
     val busquedaRestaurantes = _busquedaRestaurantes.asStateFlow()
+
+    private val _idiomaActual = MutableStateFlow(Idioma.ES)
+    val idiomaActual = _idiomaActual.asStateFlow()
 
     init {
         loadUserProfile()
@@ -212,6 +216,10 @@ class ProfileViewModel : ViewModel() {
                 onResult(false)
             }
         }
+    }
+
+    fun setIdioma(nuevoIdioma: Idioma) {
+        _idiomaActual.value = nuevoIdioma
     }
 
     fun logout() {
